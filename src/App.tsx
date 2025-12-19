@@ -1,6 +1,6 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
-import './App.css'
-import { GaussianSplatPage } from './pages/GaussianSplatPage'
+import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import "./App.css";
+import { GaussianSplatPage } from "./pages/GaussianSplatPage.tsx";
 
 export default function App() {
   return (
@@ -9,7 +9,7 @@ export default function App() {
         <div className="sidebarHeader">3DGS examples</div>
         <nav className="nav">
           <NavLink
-            className={({ isActive }) => `navLink${isActive ? ' active' : ''}`}
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
             to="/gaussian-splat"
           >
             Gaussian Splat
@@ -25,5 +25,5 @@ export default function App() {
         </Routes>
       </main>
     </div>
-  )
+  );
 }
