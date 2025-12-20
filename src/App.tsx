@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import "./App.css";
 import { CovariancePage } from "./pages/CovariancePage.tsx";
+import { SplatQuadPage } from "./pages/SplatQuadPage.tsx";
 
 export default function App() {
   return (
@@ -14,6 +15,12 @@ export default function App() {
           >
             Covariance (debug)
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
+            to="/splat-quad"
+          >
+            Splat quad (debug)
+          </NavLink>
         </nav>
       </aside>
 
@@ -21,6 +28,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/covariance" replace />} />
           <Route path="/covariance" element={<CovariancePage />} />
+          <Route path="/splat-quad" element={<SplatQuadPage />} />
           <Route path="/gaussian-splat" element={<Navigate to="/covariance" replace />} />
           <Route path="*" element={<Navigate to="/covariance" replace />} />
         </Routes>

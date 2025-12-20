@@ -17,14 +17,12 @@ import {
   vec4,
 } from "three/tsl";
 
-type Vec3Uniform = { value: Vector3 };
-
 export type CovarianceEllipsoidNodes = {
-  uCenter: Vec3Uniform;
+  uCenter: ReturnType<typeof uniform<Vector3>>;
   /** (m11, m12, m13) */
-  uCovA: Vec3Uniform;
+  uCovA: ReturnType<typeof uniform<Vector3>>;
   /** (m22, m23, m33) */
-  uCovB: Vec3Uniform;
+  uCovB: ReturnType<typeof uniform<Vector3>>;
   /** Clip-space position for the vertex shader. */
   vertexNode: Node;
   /** View/fragment normal for lighting. */
