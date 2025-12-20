@@ -1,6 +1,6 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import "./App.css";
-import { GaussianSplatPage } from "./pages/GaussianSplatPage.tsx";
+import { CovariancePage } from "./pages/CovariancePage.tsx";
 
 export default function App() {
   return (
@@ -10,18 +10,19 @@ export default function App() {
         <nav className="nav">
           <NavLink
             className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
-            to="/gaussian-splat"
+            to="/covariance"
           >
-            Gaussian Splat
+            Covariance (debug)
           </NavLink>
         </nav>
       </aside>
 
       <main className="content">
         <Routes>
-          <Route path="/" element={<Navigate to="/gaussian-splat" replace />} />
-          <Route path="/gaussian-splat" element={<GaussianSplatPage />} />
-          <Route path="*" element={<Navigate to="/gaussian-splat" replace />} />
+          <Route path="/" element={<Navigate to="/covariance" replace />} />
+          <Route path="/covariance" element={<CovariancePage />} />
+          <Route path="/gaussian-splat" element={<Navigate to="/covariance" replace />} />
+          <Route path="*" element={<Navigate to="/covariance" replace />} />
         </Routes>
       </main>
     </div>
