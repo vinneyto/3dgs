@@ -23,6 +23,12 @@ export type CovarianceEllipsoidNodes = {
   uCovA: ReturnType<typeof uniform<Vector3>>;
   /** (m22, m23, m33) */
   uCovB: ReturnType<typeof uniform<Vector3>>;
+  /**
+   * Iso-surface cutoff in "gaussian space".
+   * - 1.0 means "1-sigma" surface (unit sphere before deformation).
+   * - 8.0 matches the common splat quad cutoff (exp(-4) ≈ 0.018).
+   */
+  uCutoff: ReturnType<typeof uniform<number>>;
   /** Clip-space position for the vertex shader. */
   vertexNode: Node;
   /** View/fragment normal for lighting. */
@@ -40,6 +46,7 @@ export function createCovarianceEllipsoidNodes(): CovarianceEllipsoidNodes {
   const uCenter = uniform(new Vector3()).setName("uCenter");
   const uCovA = uniform(new Vector3(1, 0, 0)).setName("uCovA");
   const uCovB = uniform(new Vector3(1, 0, 1)).setName("uCovB");
+  const uCutoff = uniform(1.0).setName("uCutoff");
 
   // covariance (symmetric):
   // [ a  b  c ]
@@ -75,13 +82,15 @@ export function createCovarianceEllipsoidNodes(): CovarianceEllipsoidNodes {
   const L = mat3(vec3(l11, l21, l31), vec3(0.0, l22, l32), vec3(0.0, 0.0, l33));
 
   // Apply L to local vertex position (unit sphere -> ellipsoid)
-  // p' = L * p
+  // p' = L * (p * sqrt(cutoff))
   const px = float(positionLocal.x);
   const py = float(positionLocal.y);
   const pz = float(positionLocal.z);
 
   const p = vec3(px, py, pz);
-  const t = L.mul(p);
+  const cutoff = max(float(uCutoff), eps);
+  const pScaled = p.mul(sqrt(cutoff));
+  const t = L.mul(pScaled);
   const tx = float(t.x);
   const ty = float(t.y);
   const tz = float(t.z);
@@ -132,5 +141,5 @@ export function createCovarianceEllipsoidNodes(): CovarianceEllipsoidNodes {
 
   const normalNode = invLT.mul(vec3(nx, ny, nz)).normalize();
 
-  return { vertexNode, normalNode, uCenter, uCovA, uCovB };
+  return { vertexNode, normalNode, uCenter, uCovA, uCovB, uCutoff };
 }

@@ -18,6 +18,7 @@ export function SplatQuadPage() {
     m33,
     color,
     opacity,
+    cutoff,
     showQuadBg,
     quadBgAlpha,
   } = useControls("Splat (quad)", {
@@ -34,6 +35,7 @@ export function SplatQuadPage() {
 
     color: { value: "#ff8a3d" },
     opacity: { value: 1.0, min: 0, max: 1, step: 0.001 },
+    cutoff: { value: 8.0, min: 0.1, max: 25, step: 0.01 },
 
     showQuadBg: { value: true },
     quadBgAlpha: { value: 0.15, min: 0, max: 0.6, step: 0.01 },
@@ -55,6 +57,7 @@ export function SplatQuadPage() {
     demo.uCovA.value.set(m11, m12, m13);
     demo.uCovB.value.set(m22, m23, m33);
     demo.uColor.value.set(color);
+    demo.uCutoff.value = cutoff;
     demo.uParams.value.set(opacity, showQuadBg ? 1.0 : 0.0, quadBgAlpha);
   }, [
     demo,
@@ -69,6 +72,7 @@ export function SplatQuadPage() {
     m33,
     color,
     opacity,
+    cutoff,
     showQuadBg,
     quadBgAlpha,
   ]);

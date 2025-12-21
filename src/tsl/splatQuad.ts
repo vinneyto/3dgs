@@ -28,6 +28,14 @@ export type SplatQuadNodes = {
   uCovB: ReturnType<typeof uniform<Vector3>>;
   uColor: ReturnType<typeof uniform<Color>>;
   /**
+   * Iso cutoff in "gaussian space" used for:
+   * - quad radius (sqrt(cutoff))
+   * - discard threshold
+   *
+   * Default: 8.0 (exp(-4) ≈ 0.018 at the edge).
+   */
+  uCutoff: ReturnType<typeof uniform<number>>;
+  /**
    * Packed params:
    * x = opacity
    * y = showQuadBg (0/1)
@@ -55,6 +63,7 @@ export function createSplatQuadNodes(): SplatQuadNodes {
   const uCovA = uniform(new Vector3(1, 0, 0)).setName("uCovA");
   const uCovB = uniform(new Vector3(1, 0, 1)).setName("uCovB");
   const uColor = uniform(new Color("#ff8a3d")).setName("uColor");
+  const uCutoff = uniform(8.0).setName("uCutoff");
   const uParams = uniform(new Vector3(1.0, 1.0, 0.15)).setName("uParams");
 
   // 3D covariance (symmetric):
@@ -111,13 +120,14 @@ export function createSplatQuadNodes(): SplatQuadNodes {
 
   // plane corner coords from geometry (planeGeometry args [2,2] => [-1,1])
   const corner = vec2(positionLocal.x, positionLocal.y);
-  const sqrt8 = sqrt(8.0);
-  const vPosition = corner.mul(sqrt8).toVarying("vPosition");
+  const cutoff = max(float(uCutoff), eps);
+  const radius = sqrt(cutoff);
+  const vPosition = corner.mul(radius).toVarying("vPosition");
 
-  // offset = L * corner
+  // offset = L * vPosition
   const offset = add(
-    mul(corner.x, vec2(l11, l21)),
-    mul(corner.y, vec2(0.0, l22))
+    mul(vPosition.x, vec2(l11, l21)),
+    mul(vPosition.y, vec2(0.0, l22))
   );
 
   const ndcPos = add(ndcCenter.xy, offset);
@@ -125,7 +135,7 @@ export function createSplatQuadNodes(): SplatQuadNodes {
 
   // Fragment: gaussian in the "pre-deformation" coordinate space (vPosition).
   const A = vPosition.dot(vPosition);
-  A.greaterThan(8.0).discard();
+  A.greaterThan(cutoff).discard();
 
   const opacity = float(uParams.x);
   const showQuadBg = float(uParams.y);
@@ -148,6 +158,7 @@ export function createSplatQuadNodes(): SplatQuadNodes {
     uCovA,
     uCovB,
     uColor,
+    uCutoff,
     uParams,
   };
 }
