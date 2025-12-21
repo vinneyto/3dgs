@@ -1,0 +1,56 @@
+import type { Node, StorageBufferNode } from "three/webgpu";
+import {
+  cameraProjectionMatrix,
+  cameraViewMatrix,
+  instanceIndex,
+  normalLocal,
+  positionLocal,
+  uniform,
+  vec3,
+  vec4,
+} from "three/tsl";
+import { cholesky3DFromCov, sqrtCutoff } from "./gaussianCommon";
+
+export type InstancedEllipsoidNodes = {
+  /** Storage buffer with SplatInstanceStruct layout. */
+  splats: StorageBufferNode;
+  /** Iso-surface cutoff (shared for all instances). */
+  uCutoff: ReturnType<typeof uniform<number>>;
+  vertexNode: Node;
+  normalNode: Node;
+};
+
+export function createInstancedEllipsoidNodes(
+  splats: StorageBufferNode
+): InstancedEllipsoidNodes {
+  const uCutoff = uniform(1.0).setName("uCutoff");
+  const { radius } = sqrtCutoff(uCutoff);
+
+  const s = splats.element(instanceIndex);
+
+  // Per-instance data (vec4 packing)
+  const center4 = s.get("center");
+  const covA4 = s.get("covA");
+  const covB4 = s.get("covB");
+  const center = vec3(center4.x, center4.y, center4.z);
+
+  const { L, invLT } = cholesky3DFromCov({
+    covA: covA4,
+    covB: covB4,
+  });
+
+  // Deform local sphere position into ellipsoid iso-surface:
+  // p' = center + L * (positionLocal * sqrt(cutoff))
+  const p = vec3(positionLocal.x, positionLocal.y, positionLocal.z).mul(radius);
+  const worldPos = L.mul(p).add(center);
+
+  const vertexNode = cameraProjectionMatrix
+    .mul(cameraViewMatrix)
+    .mul(vec4(worldPos, 1.0));
+
+  const normalNode = invLT
+    .mul(vec3(normalLocal.x, normalLocal.y, normalLocal.z))
+    .normalize();
+
+  return { splats, uCutoff, vertexNode, normalNode };
+}

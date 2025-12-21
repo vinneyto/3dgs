@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import "./App.css";
 import { CovariancePage } from "./pages/CovariancePage.tsx";
+import { InstancedSplatsPage } from "./pages/InstancedSplatsPage.tsx";
 import { SplatComparePage } from "./pages/SplatComparePage.tsx";
 import { SplatQuadPage } from "./pages/SplatQuadPage.tsx";
 
@@ -28,6 +29,12 @@ export default function App() {
           >
             Compare (ellipsoid + sprite)
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
+            to="/instanced"
+          >
+            Instanced splats (storage buffer)
+          </NavLink>
         </nav>
       </aside>
 
@@ -37,6 +44,7 @@ export default function App() {
           <Route path="/covariance" element={<CovariancePage />} />
           <Route path="/splat-quad" element={<SplatQuadPage />} />
           <Route path="/compare" element={<SplatComparePage />} />
+          <Route path="/instanced" element={<InstancedSplatsPage />} />
           <Route path="/gaussian-splat" element={<Navigate to="/covariance" replace />} />
           <Route path="*" element={<Navigate to="/covariance" replace />} />
         </Routes>

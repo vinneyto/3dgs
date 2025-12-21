@@ -12,13 +12,12 @@ import {
   mix,
   mul,
   positionLocal,
-  sqrt,
-  sub,
   uniform,
   vec2,
   vec3,
   vec4,
 } from "three/tsl";
+import { cholesky2D, sqrtCutoff, unpackCovariance3D } from "./gaussian/gaussianCommon";
 
 export type SplatQuadNodes = {
   uCenter: ReturnType<typeof uniform<Vector3>>;
@@ -66,15 +65,7 @@ export function createSplatQuadNodes(): SplatQuadNodes {
   const uCutoff = uniform(8.0).setName("uCutoff");
   const uParams = uniform(new Vector3(1.0, 1.0, 0.15)).setName("uParams");
 
-  // 3D covariance (symmetric):
-  // [ m11  m12  m13 ]
-  // [ m12  m22  m23 ]
-  // [ m13  m23  m33 ]
-  const Vrk = mat3(
-    vec3(uCovA.x, uCovA.y, uCovA.z),
-    vec3(uCovA.y, uCovB.x, uCovB.y),
-    vec3(uCovA.z, uCovB.y, uCovB.z)
-  );
+  const Vrk = unpackCovariance3D({ covA: uCovA, covB: uCovB });
 
   // center in view/clip/ndc
   const viewCenter4 = cameraViewMatrix.mul(
@@ -113,15 +104,11 @@ export function createSplatQuadNodes(): SplatQuadNodes {
   const d = float(cov2Dm[1].y);
 
   // 2D Cholesky for [[a,b],[b,d]] => L = [[l11,0],[l21,l22]]
-  const eps = float(1e-8);
-  const l11 = sqrt(max(a, eps));
-  const l21 = div(b, l11);
-  const l22 = sqrt(max(sub(d, mul(l21, l21)), eps));
+  const { l11, l21, l22 } = cholesky2D(a, b, d);
 
   // plane corner coords from geometry (planeGeometry args [2,2] => [-1,1])
   const corner = vec2(positionLocal.x, positionLocal.y);
-  const cutoff = max(float(uCutoff), eps);
-  const radius = sqrt(cutoff);
+  const { cutoff, radius } = sqrtCutoff(uCutoff);
   const vPosition = corner.mul(radius).toVarying("vPosition");
 
   // offset = L * vPosition
