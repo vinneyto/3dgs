@@ -1,5 +1,5 @@
 import { OrbitControls } from "@react-three/drei";
-import { Leva, button, useControls } from "leva";
+import { button, useControls } from "leva";
 import { useEffect, useMemo, useState } from "react";
 import {
   DoubleSide,
@@ -10,7 +10,7 @@ import { instancedArray } from "three/tsl";
 import { SplatInstanceStruct } from "../tsl/gaussian/gaussianCommon";
 import { createInstancedEllipsoidNodes } from "../tsl/gaussian/instancedEllipsoid";
 import { createInstancedSplatQuadNodes } from "../tsl/gaussian/instancedSplatQuad";
-import { WebGPUCanvas } from "../webgpu/WebGPUCanvas";
+import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 function mulberry32(seed: number) {
   return function rand() {
@@ -88,16 +88,26 @@ function fillRandomSplats(array: Float32Array, count: number, seed: number) {
 export function InstancedSplatsPage() {
   const [regenTick, setRegenTick] = useState(0);
 
-  const { count, seed, cutoff, opacityMultiplier, showQuadBg, quadBgAlpha } =
-    useControls("Instanced splats (storage buffer)", {
-      count: { value: 256, min: 1, max: 2048, step: 1 },
-      seed: { value: 1, min: 1, max: 9999, step: 1 },
-      cutoff: { value: 8.0, min: 0.25, max: 25, step: 0.01 },
-      opacityMultiplier: { value: 1.0, min: 0, max: 2, step: 0.01 },
-      showQuadBg: { value: false },
-      quadBgAlpha: { value: 0.12, min: 0, max: 0.6, step: 0.01 },
-      regenerate: button(() => setRegenTick((x) => x + 1)),
-    });
+  const {
+    count,
+    seed,
+    cutoff,
+    opacityMultiplier,
+    showQuadBg,
+    quadBgAlpha,
+    showMeshes,
+    showQuads,
+  } = useControls("Instanced splats (storage buffer)", {
+    count: { value: 256, min: 1, max: 2048, step: 1 },
+    seed: { value: 1, min: 1, max: 9999, step: 1 },
+    cutoff: { value: 8.0, min: 0.25, max: 25, step: 0.01 },
+    opacityMultiplier: { value: 1.0, min: 0, max: 2, step: 0.01 },
+    showQuadBg: { value: false },
+    quadBgAlpha: { value: 0.12, min: 0, max: 0.6, step: 0.01 },
+    showMeshes: { value: true },
+    showQuads: { value: true },
+    regenerate: button(() => setRegenTick((x) => x + 1)),
+  });
 
   const splats = useMemo(
     () => instancedArray(count, SplatInstanceStruct),
@@ -151,7 +161,6 @@ export function InstancedSplatsPage() {
 
   return (
     <div className="page">
-      <Leva collapsed={false} />
       <div className="pageHeader">
         <h1>Instanced splats (storage buffer)</h1>
         <p className="muted">
@@ -160,32 +169,33 @@ export function InstancedSplatsPage() {
         </p>
       </div>
 
-      <WebGPUCanvas
-        className="canvasWrap"
-        camera={{ position: [4, 3, 4], fov: 50 }}
-      >
+      <WebGPUCanvasFrame camera={{ position: [4, 3, 4], fov: 50 }}>
         <OrbitControls makeDefault enableDamping />
         <ambientLight intensity={0.25} />
         <directionalLight position={[4, 6, 3]} intensity={1.2} />
         <gridHelper args={[10, 10]} />
 
-        <instancedMesh
-          args={[undefined, undefined, count]}
-          frustumCulled={false}
-        >
-          <sphereGeometry args={[1, 40, 40]} />
-          <primitive object={ellipsoidMaterial} attach="material" />
-        </instancedMesh>
+        {showMeshes ? (
+          <instancedMesh
+            args={[undefined, undefined, count]}
+            frustumCulled={false}
+          >
+            <sphereGeometry args={[1, 40, 40]} />
+            <primitive object={ellipsoidMaterial} attach="material" />
+          </instancedMesh>
+        ) : null}
 
-        <instancedMesh
-          args={[undefined, undefined, count]}
-          frustumCulled={false}
-          renderOrder={10}
-        >
-          <planeGeometry args={[2, 2]} />
-          <primitive object={quadMaterial} attach="material" />
-        </instancedMesh>
-      </WebGPUCanvas>
+        {showQuads ? (
+          <instancedMesh
+            args={[undefined, undefined, count]}
+            frustumCulled={false}
+            renderOrder={10}
+          >
+            <planeGeometry args={[2, 2]} />
+            <primitive object={quadMaterial} attach="material" />
+          </instancedMesh>
+        ) : null}
+      </WebGPUCanvasFrame>
     </div>
   );
 }

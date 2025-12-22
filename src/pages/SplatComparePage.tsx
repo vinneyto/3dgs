@@ -1,5 +1,5 @@
 import { OrbitControls } from "@react-three/drei";
-import { Leva, useControls } from "leva";
+import { useControls } from "leva";
 import { useEffect, useMemo, useState } from "react";
 import {
   DoubleSide,
@@ -8,7 +8,7 @@ import {
 } from "three/webgpu";
 import { createCovarianceEllipsoidNodes } from "../tsl/covarianceEllipsoid";
 import { createSplatQuadNodes } from "../tsl/splatQuad";
-import { WebGPUCanvas } from "../webgpu/WebGPUCanvas";
+import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 export function SplatComparePage() {
   const {
@@ -112,7 +112,6 @@ export function SplatComparePage() {
 
   return (
     <div className="page">
-      <Leva collapsed={false} />
       <div className="pageHeader">
         <h1>Compare: ellipsoid + splat sprite</h1>
         <p className="muted">
@@ -122,7 +121,7 @@ export function SplatComparePage() {
         </p>
       </div>
 
-      <WebGPUCanvas className="canvasWrap" camera={{ position: [3, 2.2, 3], fov: 50 }}>
+      <WebGPUCanvasFrame camera={{ position: [3, 2.2, 3], fov: 50 }}>
         <OrbitControls makeDefault enableDamping />
         <ambientLight intensity={0.25} />
         <directionalLight position={[4, 6, 3]} intensity={1.2} />
@@ -137,7 +136,7 @@ export function SplatComparePage() {
           <planeGeometry args={[2, 2]} />
           <primitive object={splatMaterial} attach="material" />
         </mesh>
-      </WebGPUCanvas>
+      </WebGPUCanvasFrame>
     </div>
   );
 }

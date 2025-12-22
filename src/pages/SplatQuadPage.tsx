@@ -1,9 +1,9 @@
 import { OrbitControls } from "@react-three/drei";
-import { Leva, useControls } from "leva";
+import { useControls } from "leva";
 import { useEffect, useMemo, useState } from "react";
 import { DoubleSide, MeshBasicNodeMaterial } from "three/webgpu";
 import { createSplatQuadNodes } from "../tsl/splatQuad";
-import { WebGPUCanvas } from "../webgpu/WebGPUCanvas";
+import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 export function SplatQuadPage() {
   const {
@@ -79,26 +79,22 @@ export function SplatQuadPage() {
 
   return (
     <div className="page">
-      <Leva collapsed={false} />
       <div className="pageHeader">
         <h1>Splat quad (debug)</h1>
         <p className="muted">
           Solid-colored quad, but vertex shader already does: cov3D → cov2D →
-          cholesky → quad offset around projected center.
+          eigen basis → quad offset around projected center.
         </p>
       </div>
 
-      <WebGPUCanvas
-        className="canvasWrap"
-        camera={{ position: [2.5, 2.0, 2.5], fov: 50 }}
-      >
+      <WebGPUCanvasFrame camera={{ position: [2.5, 2.0, 2.5], fov: 50 }}>
         <OrbitControls makeDefault enableDamping />
         <gridHelper args={[10, 10]} />
         <mesh>
           <planeGeometry args={[2, 2]} />
           <primitive object={material} attach="material" />
         </mesh>
-      </WebGPUCanvas>
+      </WebGPUCanvasFrame>
     </div>
   );
 }

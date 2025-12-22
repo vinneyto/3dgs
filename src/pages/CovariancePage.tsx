@@ -1,9 +1,9 @@
 import { OrbitControls } from "@react-three/drei";
-import { Leva, useControls } from "leva";
+import { useControls } from "leva";
 import { useEffect, useMemo, useState } from "react";
 import { DoubleSide, MeshStandardNodeMaterial } from "three/webgpu";
 import { createCovarianceEllipsoidNodes } from "../tsl/covarianceEllipsoid";
-import { WebGPUCanvas } from "../webgpu/WebGPUCanvas";
+import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 export function CovariancePage() {
   const { centerX, centerY, centerZ, m11, m12, m13, m22, m23, m33 } =
@@ -46,7 +46,6 @@ export function CovariancePage() {
 
   return (
     <div className="page">
-      <Leva collapsed={false} />
       <div className="pageHeader">
         <h1>Covariance → Ellipsoid (debug)</h1>
         <p className="muted">
@@ -56,10 +55,7 @@ export function CovariancePage() {
         </p>
       </div>
 
-      <WebGPUCanvas
-        className="canvasWrap"
-        camera={{ position: [3, 2.2, 3], fov: 50 }}
-      >
+      <WebGPUCanvasFrame camera={{ position: [3, 2.2, 3], fov: 50 }}>
         <OrbitControls makeDefault enableDamping />
         <ambientLight intensity={0.25} />
         <directionalLight position={[4, 6, 3]} intensity={1.2} />
@@ -69,7 +65,7 @@ export function CovariancePage() {
           <sphereGeometry args={[1, 64, 64]} />
           <primitive object={material} attach="material" />
         </mesh>
-      </WebGPUCanvas>
+      </WebGPUCanvasFrame>
     </div>
   );
 }

@@ -66,5 +66,25 @@
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
+  position: relative;
+}
+
+.levaDock {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+.levaDock > * {
+  position: absolute !important;
+  top: 12px;
+  right: 12px;
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  pointer-events: auto;
+}
+
+.levaDock {
+  pointer-events: none;
 }
 
