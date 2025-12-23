@@ -1,0 +1,33 @@
+You are an AI coding agent working in this repository (3dgs). Follow these project rules.
+
+## TSL / NodeMaterial conventions (three/tsl)
+
+### 1) Use Fn() for any stack-based shader statements
+Three TSL has "stack" statements (they must be recorded while the shader is being built):
+- discard()
+- assign()/swizzle setters (e.g. node.x = ...)
+- If()/ElseIf()/Else(), Switch()/Case()
+- Loop()/Break()/Continue()
+
+Rule: **Any logic that contains stack statements must be wrapped in `Fn(() => { ... })`** (or an exported `Fn`) so the statements are captured during NodeBuilder shader generation.
+
+### 2) Keep "pure" math as plain nodes
+Pure expressions (add/mul/dot/etc.) can be composed directly without `Fn` as long as the resulting nodes are reachable from the material roots (vertexNode/colorNode/opacityNode/etc.).
+
+### 3) Prefer omitting Fn layout
+Do not write explicit `Fn` layout objects unless needed. In this project:
+- The return type is usually inferred from the returned node (e.g. `return vec4(...)`).
+- TypeScript types enforce consistent call signatures across the codebase.
+
+If TypeScript infers the `Fn` callback parameter as `NodeBuilder` (or you get call-signature errors), fix it by adding an explicit parameter type annotation in TypeScript, e.g.:
+
+```ts
+const myFn = Fn(({ x }: { x: Node }) => { ... });
+myFn({ x });
+```
+
+### 4) Shader builder return shape
+TSL "shader builder" functions should return:
+`{ nodes: {...}, uniforms: {...}, buffers: {...} }`
+
+

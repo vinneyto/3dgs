@@ -2,6 +2,8 @@ import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import "./App.css";
 import { CovariancePage } from "./pages/CovariancePage.tsx";
 import { InstancedSplatsPage } from "./pages/InstancedSplatsPage.tsx";
+import { BillboardCirclePage } from "./pages/BillboardCirclePage.tsx";
+import { BillboardCircleStoragePage } from "./pages/BillboardCircleStoragePage.tsx";
 import { SplatComparePage } from "./pages/SplatComparePage.tsx";
 import { SplatQuadPage } from "./pages/SplatQuadPage.tsx";
 
@@ -35,6 +37,18 @@ export default function App() {
           >
             Instanced splats (storage buffer)
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
+            to="/billboard-circles"
+          >
+            Billboard circles (TSL)
+          </NavLink>
+          <NavLink
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
+            to="/billboard-circles-buffer"
+          >
+            Billboard circles (storage buffer)
+          </NavLink>
         </nav>
       </aside>
 
@@ -45,6 +59,11 @@ export default function App() {
           <Route path="/splat-quad" element={<SplatQuadPage />} />
           <Route path="/compare" element={<SplatComparePage />} />
           <Route path="/instanced" element={<InstancedSplatsPage />} />
+          <Route path="/billboard-circles" element={<BillboardCirclePage />} />
+          <Route
+            path="/billboard-circles-buffer"
+            element={<BillboardCircleStoragePage />}
+          />
           <Route path="/gaussian-splat" element={<Navigate to="/covariance" replace />} />
           <Route path="*" element={<Navigate to="/covariance" replace />} />
         </Routes>

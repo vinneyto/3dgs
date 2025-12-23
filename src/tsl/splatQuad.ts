@@ -17,7 +17,11 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import { cholesky2D, sqrtCutoff, unpackCovariance3D } from "./gaussian/gaussianCommon";
+import {
+  cholesky2D,
+  sqrtCutoff,
+  unpackCovariance3D,
+} from "./gaussian/gaussianCommon";
 
 export type SplatQuadNodes = {
   nodes: {

@@ -7,23 +7,11 @@ import {
   MeshStandardNodeMaterial,
 } from "three/webgpu";
 import { instancedArray } from "three/tsl";
+import { mulberry32, randRange } from "../lib/random";
 import { SplatInstanceStruct } from "../tsl/gaussian/gaussianCommon";
 import { createInstancedEllipsoidNodes } from "../tsl/gaussian/instancedEllipsoid";
 import { createInstancedSplatQuadNodes } from "../tsl/gaussian/instancedSplatQuad";
 import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
-
-function mulberry32(seed: number) {
-  return function rand() {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function randRange(r: () => number, min: number, max: number) {
-  return min + (max - min) * r();
-}
 
 /**
  * Fill storage buffer with random SPD covariance via L*L^T.
