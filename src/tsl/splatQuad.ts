@@ -20,30 +20,35 @@ import {
 import { cholesky2D, sqrtCutoff, unpackCovariance3D } from "./gaussian/gaussianCommon";
 
 export type SplatQuadNodes = {
-  uCenter: ReturnType<typeof uniform<Vector3>>;
-  /** (m11, m12, m13) */
-  uCovA: ReturnType<typeof uniform<Vector3>>;
-  /** (m22, m23, m33) */
-  uCovB: ReturnType<typeof uniform<Vector3>>;
-  uColor: ReturnType<typeof uniform<Color>>;
-  /**
-   * Iso cutoff in "gaussian space" used for:
-   * - quad radius (sqrt(cutoff))
-   * - discard threshold
-   *
-   * Default: 8.0 (exp(-4) ≈ 0.018 at the edge).
-   */
-  uCutoff: ReturnType<typeof uniform<number>>;
-  /**
-   * Packed params:
-   * x = opacity
-   * y = showQuadBg (0/1)
-   * z = quadBgAlpha
-   */
-  uParams: ReturnType<typeof uniform<Vector3>>;
-  vertexNode: Node;
-  colorNode: Node;
-  opacityNode: Node;
+  nodes: {
+    vertexNode: Node;
+    colorNode: Node;
+    opacityNode: Node;
+  };
+  uniforms: {
+    uCenter: ReturnType<typeof uniform<Vector3>>;
+    /** (m11, m12, m13) */
+    uCovA: ReturnType<typeof uniform<Vector3>>;
+    /** (m22, m23, m33) */
+    uCovB: ReturnType<typeof uniform<Vector3>>;
+    uColor: ReturnType<typeof uniform<Color>>;
+    /**
+     * Iso cutoff in "gaussian space" used for:
+     * - quad radius (sqrt(cutoff))
+     * - discard threshold
+     *
+     * Default: 8.0 (exp(-4) ≈ 0.018 at the edge).
+     */
+    uCutoff: ReturnType<typeof uniform<number>>;
+    /**
+     * Packed params:
+     * x = opacity
+     * y = showQuadBg (0/1)
+     * z = quadBgAlpha
+     */
+    uParams: ReturnType<typeof uniform<Vector3>>;
+  };
+  buffers: Record<string, never>;
 };
 
 /**
@@ -138,14 +143,8 @@ export function createSplatQuadNodes(): SplatQuadNodes {
   const colorNode = mix(bgColor, vec3(uColor), mask);
 
   return {
-    vertexNode,
-    colorNode,
-    opacityNode,
-    uCenter,
-    uCovA,
-    uCovB,
-    uColor,
-    uCutoff,
-    uParams,
+    nodes: { vertexNode, colorNode, opacityNode },
+    uniforms: { uCenter, uCovA, uCovB, uColor, uCutoff, uParams },
+    buffers: {},
   };
 }

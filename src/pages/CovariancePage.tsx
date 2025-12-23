@@ -27,21 +27,21 @@ export function CovariancePage() {
       roughness: 0.75,
       metalness: 0.0,
     });
-    m.vertexNode = demo.vertexNode;
-    m.normalNode = demo.normalNode;
+    m.vertexNode = demo.nodes.vertexNode;
+    m.normalNode = demo.nodes.normalNode;
     return m;
   }, [demo]);
 
   useEffect(() => {
     // center
-    demo.uCenter.value.set(centerX, centerY, centerZ);
+    demo.uniforms.uCenter.value.set(centerX, centerY, centerZ);
 
     // symmetric covariance:
     // [ m11  m12  m13 ]
     // [ m12  m22  m23 ]
     // [ m13  m23  m33 ]
-    demo.uCovA.value.set(m11, m12, m13);
-    demo.uCovB.value.set(m22, m23, m33);
+    demo.uniforms.uCovA.value.set(m11, m12, m13);
+    demo.uniforms.uCovB.value.set(m22, m23, m33);
   }, [demo, centerX, centerY, centerZ, m11, m12, m13, m22, m23, m33]);
 
   return (

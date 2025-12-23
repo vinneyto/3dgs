@@ -12,12 +12,18 @@ import {
 import { cholesky3DFromCov, sqrtCutoff } from "./gaussianCommon";
 
 export type InstancedEllipsoidNodes = {
-  /** Storage buffer with SplatInstanceStruct layout. */
-  splats: StorageBufferNode;
-  /** Iso-surface cutoff (shared for all instances). */
-  uCutoff: ReturnType<typeof uniform<number>>;
-  vertexNode: Node;
-  normalNode: Node;
+  nodes: {
+    vertexNode: Node;
+    normalNode: Node;
+  };
+  uniforms: {
+    /** Iso-surface cutoff (shared for all instances). */
+    uCutoff: ReturnType<typeof uniform<number>>;
+  };
+  buffers: {
+    /** Storage buffer with SplatInstanceStruct layout. */
+    splats: StorageBufferNode;
+  };
 };
 
 export function createInstancedEllipsoidNodes(
@@ -52,5 +58,9 @@ export function createInstancedEllipsoidNodes(
     .mul(vec3(normalLocal.x, normalLocal.y, normalLocal.z))
     .normalize();
 
-  return { splats, uCutoff, vertexNode, normalNode };
+  return {
+    nodes: { vertexNode, normalNode },
+    uniforms: { uCutoff },
+    buffers: { splats },
+  };
 }

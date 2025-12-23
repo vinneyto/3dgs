@@ -11,21 +11,26 @@ import {
 import { cholesky3DFromCov, sqrtCutoff } from "./gaussian/gaussianCommon";
 
 export type CovarianceEllipsoidNodes = {
-  uCenter: ReturnType<typeof uniform<Vector3>>;
-  /** (m11, m12, m13) */
-  uCovA: ReturnType<typeof uniform<Vector3>>;
-  /** (m22, m23, m33) */
-  uCovB: ReturnType<typeof uniform<Vector3>>;
-  /**
-   * Iso-surface cutoff in "gaussian space".
-   * - 1.0 means "1-sigma" surface (unit sphere before deformation).
-   * - 8.0 matches the common splat quad cutoff (exp(-4) ≈ 0.018).
-   */
-  uCutoff: ReturnType<typeof uniform<number>>;
-  /** Clip-space position for the vertex shader. */
-  vertexNode: Node;
-  /** View/fragment normal for lighting. */
-  normalNode: Node;
+  nodes: {
+    /** Clip-space position for the vertex shader. */
+    vertexNode: Node;
+    /** View/fragment normal for lighting. */
+    normalNode: Node;
+  };
+  uniforms: {
+    uCenter: ReturnType<typeof uniform<Vector3>>;
+    /** (m11, m12, m13) */
+    uCovA: ReturnType<typeof uniform<Vector3>>;
+    /** (m22, m23, m33) */
+    uCovB: ReturnType<typeof uniform<Vector3>>;
+    /**
+     * Iso-surface cutoff in "gaussian space".
+     * - 1.0 means "1-sigma" surface (unit sphere before deformation).
+     * - 8.0 matches the common splat quad cutoff (exp(-4) ≈ 0.018).
+     */
+    uCutoff: ReturnType<typeof uniform<number>>;
+  };
+  buffers: Record<string, never>;
 };
 
 /**
@@ -55,5 +60,9 @@ export function createCovarianceEllipsoidNodes(): CovarianceEllipsoidNodes {
     .mul(vec3(normalLocal.x, normalLocal.y, normalLocal.z))
     .normalize();
 
-  return { vertexNode, normalNode, uCenter, uCovA, uCovB, uCutoff };
+  return {
+    nodes: { vertexNode, normalNode },
+    uniforms: { uCenter, uCovA, uCovB, uCutoff },
+    buffers: {},
+  };
 }

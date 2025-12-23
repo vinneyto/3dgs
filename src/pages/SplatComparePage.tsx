@@ -58,8 +58,8 @@ export function SplatComparePage() {
       roughness: 0.75,
       metalness: 0.0,
     });
-    m.vertexNode = ellipsoid.vertexNode;
-    m.normalNode = ellipsoid.normalNode;
+    m.vertexNode = ellipsoid.nodes.vertexNode;
+    m.normalNode = ellipsoid.nodes.normalNode;
     return m;
   }, [ellipsoid]);
 
@@ -68,9 +68,9 @@ export function SplatComparePage() {
     m.transparent = true;
     m.depthTest = false;
     m.depthWrite = false;
-    m.vertexNode = splat.vertexNode;
-    m.colorNode = splat.colorNode;
-    m.opacityNode = splat.opacityNode as never;
+    m.vertexNode = splat.nodes.vertexNode;
+    m.colorNode = splat.nodes.colorNode;
+    m.opacityNode = splat.nodes.opacityNode as never;
     return m;
   }, [splat]);
 
@@ -79,18 +79,22 @@ export function SplatComparePage() {
     // [ m11  m12  m13 ]
     // [ m12  m22  m23 ]
     // [ m13  m23  m33 ]
-    ellipsoid.uCenter.value.set(centerX, centerY, centerZ);
-    ellipsoid.uCovA.value.set(m11, m12, m13);
-    ellipsoid.uCovB.value.set(m22, m23, m33);
-    ellipsoid.uCutoff.value = cutoff;
+    ellipsoid.uniforms.uCenter.value.set(centerX, centerY, centerZ);
+    ellipsoid.uniforms.uCovA.value.set(m11, m12, m13);
+    ellipsoid.uniforms.uCovB.value.set(m22, m23, m33);
+    ellipsoid.uniforms.uCutoff.value = cutoff;
 
-    splat.uCenter.value.set(centerX, centerY, centerZ);
-    splat.uCovA.value.set(m11, m12, m13);
-    splat.uCovB.value.set(m22, m23, m33);
-    splat.uCutoff.value = cutoff;
+    splat.uniforms.uCenter.value.set(centerX, centerY, centerZ);
+    splat.uniforms.uCovA.value.set(m11, m12, m13);
+    splat.uniforms.uCovB.value.set(m22, m23, m33);
+    splat.uniforms.uCutoff.value = cutoff;
 
-    splat.uColor.value.set(color);
-    splat.uParams.value.set(opacity, showQuadBg ? 1.0 : 0.0, quadBgAlpha);
+    splat.uniforms.uColor.value.set(color);
+    splat.uniforms.uParams.value.set(
+      opacity,
+      showQuadBg ? 1.0 : 0.0,
+      quadBgAlpha
+    );
   }, [
     ellipsoid,
     splat,

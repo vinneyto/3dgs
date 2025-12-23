@@ -126,8 +126,8 @@ export function InstancedSplatsPage() {
       roughness: 0.8,
       metalness: 0.0,
     });
-    m.vertexNode = ellipsoid.vertexNode;
-    m.normalNode = ellipsoid.normalNode;
+    m.vertexNode = ellipsoid.nodes.vertexNode;
+    m.normalNode = ellipsoid.nodes.normalNode;
     return m;
   }, [ellipsoid]);
 
@@ -136,16 +136,16 @@ export function InstancedSplatsPage() {
     m.transparent = true;
     m.depthTest = false;
     m.depthWrite = false;
-    m.vertexNode = quad.vertexNode;
-    m.colorNode = quad.colorNode;
-    m.opacityNode = quad.opacityNode;
+    m.vertexNode = quad.nodes.vertexNode;
+    m.colorNode = quad.nodes.colorNode;
+    m.opacityNode = quad.nodes.opacityNode;
     return m;
   }, [quad]);
 
   useEffect(() => {
-    ellipsoid.uCutoff.value = cutoff;
-    quad.uCutoff.value = cutoff;
-    quad.uParams.value.set(
+    ellipsoid.uniforms.uCutoff.value = cutoff;
+    quad.uniforms.uCutoff.value = cutoff;
+    quad.uniforms.uParams.value.set(
       opacityMultiplier,
       showQuadBg ? 1.0 : 0.0,
       quadBgAlpha

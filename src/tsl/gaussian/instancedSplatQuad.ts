@@ -22,19 +22,25 @@ import {
 import { cholesky2D, sqrtCutoff, unpackCovariance3D } from "./gaussianCommon";
 
 export type InstancedSplatQuadNodes = {
-  splats: StorageBufferNode;
-  /** Global cutoff (same meaning as in GaussianSplats3D: default 8). */
-  uCutoff: ReturnType<typeof uniform<number>>;
-  /**
-   * Packed debug params:
-   * x = opacityMultiplier
-   * y = showQuadBg (0/1)
-   * z = quadBgAlpha
-   */
-  uParams: ReturnType<typeof uniform<Vector3>>;
-  vertexNode: Node;
-  colorNode: Node;
-  opacityNode: Node;
+  nodes: {
+    vertexNode: Node;
+    colorNode: Node;
+    opacityNode: Node;
+  };
+  uniforms: {
+    /** Global cutoff (same meaning as in GaussianSplats3D: default 8). */
+    uCutoff: ReturnType<typeof uniform<number>>;
+    /**
+     * Packed debug params:
+     * x = opacityMultiplier
+     * y = showQuadBg (0/1)
+     * z = quadBgAlpha
+     */
+    uParams: ReturnType<typeof uniform<Vector3>>;
+  };
+  buffers: {
+    splats: StorageBufferNode;
+  };
 };
 
 export function createInstancedSplatQuadNodes(
@@ -130,5 +136,9 @@ export function createInstancedSplatQuadNodes(
   );
   const colorNode = mix(bgColor, instanceColor, mask);
 
-  return { splats, uCutoff, uParams, vertexNode, colorNode, opacityNode };
+  return {
+    nodes: { vertexNode, colorNode, opacityNode },
+    uniforms: { uCutoff, uParams },
+    buffers: { splats },
+  };
 }

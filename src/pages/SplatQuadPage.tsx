@@ -46,19 +46,23 @@ export function SplatQuadPage() {
     const m = new MeshBasicNodeMaterial({ side: DoubleSide });
     m.transparent = true;
     m.depthWrite = false;
-    m.vertexNode = demo.vertexNode;
-    m.colorNode = demo.colorNode;
-    m.opacityNode = demo.opacityNode as never;
+    m.vertexNode = demo.nodes.vertexNode;
+    m.colorNode = demo.nodes.colorNode;
+    m.opacityNode = demo.nodes.opacityNode as never;
     return m;
   }, [demo]);
 
   useEffect(() => {
-    demo.uCenter.value.set(centerX, centerY, centerZ);
-    demo.uCovA.value.set(m11, m12, m13);
-    demo.uCovB.value.set(m22, m23, m33);
-    demo.uColor.value.set(color);
-    demo.uCutoff.value = cutoff;
-    demo.uParams.value.set(opacity, showQuadBg ? 1.0 : 0.0, quadBgAlpha);
+    demo.uniforms.uCenter.value.set(centerX, centerY, centerZ);
+    demo.uniforms.uCovA.value.set(m11, m12, m13);
+    demo.uniforms.uCovB.value.set(m22, m23, m33);
+    demo.uniforms.uColor.value.set(color);
+    demo.uniforms.uCutoff.value = cutoff;
+    demo.uniforms.uParams.value.set(
+      opacity,
+      showQuadBg ? 1.0 : 0.0,
+      quadBgAlpha
+    );
   }, [
     demo,
     centerX,
