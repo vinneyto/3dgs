@@ -1,5 +1,22 @@
 import type { Node } from "three/webgpu";
-import { div, float, mat3, max, mul, sqrt, struct, sub, vec3 } from "three/tsl";
+import {
+  add,
+  clamp,
+  div,
+  exp,
+  Fn,
+  float,
+  mat3,
+  max,
+  mix,
+  mul,
+  sqrt,
+  struct,
+  sub,
+  vec2,
+  vec3,
+  vec4,
+} from "three/tsl";
 
 export const SplatInstanceStruct = struct(
   {
@@ -82,3 +99,161 @@ export function cholesky2D(a: Node, b: Node, d: Node, eps = 1e-8) {
   const l22 = sqrt(max(sub(float(d), mul(l21, l21)), eNode));
   return { l11, l21, l22 };
 }
+
+/**
+ * Compute `colorNode` for splat-quad rendering:
+ * mixes a dark background with instance color based on gaussian alpha.
+ *
+ * Mirrors the logic used in `instancedSplatQuad.ts`.
+ */
+export const splatQuadColorNodeFn = Fn(
+  ({
+    instanceColor,
+    gaussianAlpha,
+    instanceOpacity,
+    opacityMultiplier,
+    A,
+    cutoff,
+  }: {
+    instanceColor: Node; // vec3
+    gaussianAlpha: Node; // float
+    instanceOpacity: Node; // float
+    opacityMultiplier: Node; // float
+    A: Node; // float (typically dot(vPosition, vPosition))
+    cutoff: Node; // float
+  }) => {
+    // Discard outside ellipse cutoff (same rule as in the calling shader).
+    float(A).greaterThan(float(cutoff)).discard();
+
+    const bgColor = vec3(0.12, 0.12, 0.12);
+    const denom = max(
+      mul(float(instanceOpacity), float(opacityMultiplier)),
+      1e-6
+    );
+    const mask = clamp(div(float(gaussianAlpha), denom), 0.0, 1.0);
+    return mix(bgColor, vec3(instanceColor), mask);
+  }
+);
+
+/**
+ * Full fragment-stage splat-quad logic wrapped in `Fn`.
+ *
+ * Returns RGBA where:
+ * - rgb = mix(bgColor, instanceColor, mask)
+ * - a   = max(baseAlpha, gaussianAlpha)
+ *
+ * This is the exact logic that used to live in `instancedSplatQuad.ts` (79-101),
+ * but packaged as a single node function for reuse across WebGPU/WebGL pipelines.
+ */
+export const splatQuadFragmentNodeFn = Fn(
+  ({
+    instanceColor,
+    instanceOpacity,
+    opacityMultiplier,
+    showQuadBg,
+    quadBgAlpha,
+    vPosition,
+    cutoff,
+  }: {
+    instanceColor: Node; // vec3
+    instanceOpacity: Node; // float
+    opacityMultiplier: Node; // float
+    showQuadBg: Node; // float (0/1)
+    quadBgAlpha: Node; // float
+    vPosition: Node; // vec2 (varying)
+    cutoff: Node; // float
+  }) => {
+    const A = vec2(vPosition).dot(vec2(vPosition));
+
+    // Discard outside ellipse cutoff
+    float(A).greaterThan(float(cutoff)).discard();
+
+    const gaussianAlpha = exp(float(A).mul(-0.5))
+      .mul(float(instanceOpacity))
+      .mul(float(opacityMultiplier));
+
+    const baseAlpha = float(quadBgAlpha).mul(float(showQuadBg));
+    const outAlpha = max(baseAlpha, gaussianAlpha);
+
+    const bgColor = vec3(0.12, 0.12, 0.12);
+    const denom = max(
+      mul(float(instanceOpacity), float(opacityMultiplier)),
+      1e-6
+    );
+    const mask = clamp(div(gaussianAlpha, denom), 0.0, 1.0);
+    const outColor = mix(bgColor, vec3(instanceColor), mask);
+
+    return vec4(outColor, outAlpha);
+  }
+);
+
+/**
+ * Vertex node computation wrapped in `Fn`:
+ * given center+covariance projected to screen, returns clip-space `vertexNode`.
+ *
+ * Note: `vPosition` is expected to already be a varying (usually `corner * sqrtCutoff`).
+ */
+export const splatQuadVertexNodeFn = Fn(
+  ({
+    centerWorld,
+    Vrk,
+    vPosition,
+    splatScale,
+    cameraViewMatrixNode,
+    cameraProjectionMatrixNode,
+  }: {
+    centerWorld: Node; // vec3
+    Vrk: Node; // mat3
+    vPosition: Node; // vec2 (varying)
+    splatScale: Node; // float
+    cameraViewMatrixNode: Node; // mat4
+    cameraProjectionMatrixNode: Node; // mat4
+  }) => {
+    // center in view/clip/ndc
+    const viewCenter4 = cameraViewMatrixNode.mul(vec4(centerWorld, 1.0));
+    const clipCenter4 = cameraProjectionMatrixNode.mul(viewCenter4);
+    const ndcCenter = div(clipCenter4.xyz, clipCenter4.w);
+
+    // Jacobian of perspective projection at viewCenter
+    const fx = float(cameraProjectionMatrixNode[0].x);
+    const fy = float(cameraProjectionMatrixNode[1].y);
+
+    const z = float(viewCenter4.z);
+    const x = float(viewCenter4.x);
+    const y = float(viewCenter4.y);
+    const invZ2 = div(1.0, mul(z, z));
+
+    const J = mat3(
+      vec3(div(fx, z), 0.0, 0.0),
+      vec3(0.0, div(fy, z), 0.0),
+      vec3(
+        mul(mul(mul(-1.0, fx), x), invZ2),
+        mul(mul(mul(-1.0, fy), y), invZ2),
+        0.0
+      )
+    );
+
+    // W = transpose(mat3(viewMatrix))
+    const W = mat3(cameraViewMatrixNode).transpose();
+    const T = W.mul(J);
+
+    // cov2Dm = transpose(T) * Vrk * T
+    const cov2Dm = T.transpose().mul(Vrk).mul(T);
+
+    // 2x2 symmetric block (XY): a=cov00, b=cov01, d=cov11
+    const a = float(cov2Dm[0].x);
+    const b = float(cov2Dm[0].y);
+    const d = float(cov2Dm[1].y);
+
+    const { l11, l21, l22 } = cholesky2D(a, b, d);
+
+    // offset = (L2 * vPosition) * splatScale
+    const offset = mul(
+      add(mul(vPosition.x, vec2(l11, l21)), mul(vPosition.y, vec2(0.0, l22))),
+      float(splatScale)
+    );
+
+    const ndcPos = add(ndcCenter.xy, offset);
+    return vec4(vec3(ndcPos, ndcCenter.z), 1.0);
+  }
+);
