@@ -2,7 +2,8 @@
 // Minimal PLY parser for 3D Gaussian Splats:
 // - Reads PLY header (ascii/binary_little_endian/binary_big_endian)
 // - Extracts: center (x,y,z), covariance (6 via scale+quat), rgba (optional rgb + opacity)
-// - Ignores spherical harmonics (f_dc / f_rest) intentionally.
+// - Uses f_dc_0..2 (DC spherical harmonics) as a fallback for RGB when explicit red/green/blue is absent.
+// - Ignores higher-order spherical harmonics (f_rest_*) intentionally.
 //
 // Usage:
 //   import { parseSplatPly } from "./splat_ply_parser";
@@ -49,7 +50,8 @@ export type SplatPlyBuffers = {
   center: Float32Array; // 3N
   /** 6N floats: [m11,m12,m13,m22,m23,m33] per splat (symmetric 3x3 covariance). */
   covariance: Float32Array;
-  rgba: Uint8Array; // 4N  (0..255)
+  /** N packed RGBA8 as uint32: r | (g<<8) | (b<<16) | (a<<24) */
+  rgba: Uint32Array;
   format: PlyFormat;
 };
 
@@ -322,6 +324,13 @@ function clamp255(x: number): number {
   return x < 0 ? 0 : x > 255 ? 255 : x | 0;
 }
 
+function rgbaToUint32(r: number, g: number, b: number, a: number): number {
+  // Matches GaussianSplats3D packing (Util.rgbaToInteger / rgbaArrayToInteger)
+  return (
+    ((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | ((a & 255) << 24)) >>> 0
+  );
+}
+
 function isProbablyByteColorType(t: PlyScalarType): boolean {
   return t === "uchar" || t === "char";
 }
@@ -392,21 +401,23 @@ export function parseSplatPly(
   const pr = pickName(pmap, ["red", "r"]);
   const pg = pickName(pmap, ["green", "g"]);
   const pb = pickName(pmap, ["blue", "b"]);
+  const fdc0 = pickName(pmap, ["f_dc_0"]);
+  const fdc1 = pickName(pmap, ["f_dc_1"]);
+  const fdc2 = pickName(pmap, ["f_dc_2"]);
+  const SH_C0 = 0.28209479177387814; // matches GaussianSplats3D INRIA parsers
 
   const count = el.count;
 
   const center = new Float32Array(count * 3);
   const covariance = new Float32Array(count * 6);
-  const rgba = new Uint8Array(count * 4);
-
-  // init default colors
-  for (let i = 0; i < count; i++) {
-    const o = i * 4;
-    rgba[o + 0] = defaultRGBA[0];
-    rgba[o + 1] = defaultRGBA[1];
-    rgba[o + 2] = defaultRGBA[2];
-    rgba[o + 3] = defaultRGBA[3];
-  }
+  const rgba = new Uint32Array(count);
+  const defaultPacked = rgbaToUint32(
+    clamp255(defaultRGBA[0]),
+    clamp255(defaultRGBA[1]),
+    clamp255(defaultRGBA[2]),
+    clamp255(defaultRGBA[3])
+  );
+  rgba.fill(defaultPacked);
 
   if (
     header.format === "binary_little_endian" ||
@@ -479,6 +490,24 @@ export function parseSplatPly(
       tb = (pb.prop as any).type as PlyScalarType;
     }
 
+    let hasFDC = false;
+    let if0 = -1,
+      if1 = -1,
+      if2 = -1;
+    let tf0: PlyScalarType | null = null,
+      tf1: PlyScalarType | null = null,
+      tf2: PlyScalarType | null = null;
+
+    if (!hasColor && fdc0 && fdc1 && fdc2) {
+      hasFDC = true;
+      if0 = fdc0.index;
+      if1 = fdc1.index;
+      if2 = fdc2.index;
+      tf0 = (fdc0.prop as any).type as PlyScalarType;
+      tf1 = (fdc1.prop as any).type as PlyScalarType;
+      tf2 = (fdc2.prop as any).type as PlyScalarType;
+    }
+
     let base = dataOffset;
     for (let i = 0; i < count; i++, base += stride) {
       const cx = Number(readScalar(ix, tx, base));
@@ -525,8 +554,10 @@ export function parseSplatPly(
       covariance[v6 + 4] = m23;
       covariance[v6 + 5] = m33;
 
-      const v4 = i * 4;
-      rgba[v4 + 3] = clamp255(alpha * 255);
+      const a = clamp255(alpha * 255);
+      let r = clamp255(defaultRGBA[0]);
+      let g = clamp255(defaultRGBA[1]);
+      let b = clamp255(defaultRGBA[2]);
 
       if (hasColor && tr && tg && tb) {
         const rv = Number(readScalar(ir, tr, base));
@@ -538,16 +569,27 @@ export function parseSplatPly(
           isProbablyByteColorType(tg) &&
           isProbablyByteColorType(tb)
         ) {
-          rgba[v4 + 0] = clamp255(rv);
-          rgba[v4 + 1] = clamp255(gv);
-          rgba[v4 + 2] = clamp255(bv);
+          r = clamp255(rv);
+          g = clamp255(gv);
+          b = clamp255(bv);
         } else {
           // assume 0..1 floats
-          rgba[v4 + 0] = clamp255(rv * 255);
-          rgba[v4 + 1] = clamp255(gv * 255);
-          rgba[v4 + 2] = clamp255(bv * 255);
+          r = clamp255(rv * 255);
+          g = clamp255(gv * 255);
+          b = clamp255(bv * 255);
         }
+      } else if (hasFDC && tf0 && tf1 && tf2) {
+        // GaussianSplats3D-style DC SH -> RGB conversion:
+        // rgb = (0.5 + SH_C0 * f_dc) * 255
+        const f0 = Number(readScalar(if0, tf0, base));
+        const f1 = Number(readScalar(if1, tf1, base));
+        const f2 = Number(readScalar(if2, tf2, base));
+        r = clamp255((0.5 + SH_C0 * f0) * 255);
+        g = clamp255((0.5 + SH_C0 * f1) * 255);
+        b = clamp255((0.5 + SH_C0 * f2) * 255);
       }
+
+      rgba[i] = rgbaToUint32(r, g, b, a);
     }
 
     return { count, center, covariance, rgba, format: header.format };
@@ -588,6 +630,10 @@ export function parseSplatPly(
     const rC = col(["red", "r"]);
     const gC = col(["green", "g"]);
     const bC = col(["blue", "b"]);
+    const f0C = col(["f_dc_0"]);
+    const f1C = col(["f_dc_1"]);
+    const f2C = col(["f_dc_2"]);
+    const SH_C0 = 0.28209479177387814; // matches GaussianSplats3D INRIA parsers
 
     if (
       [cxC, cyC, czC, s0C, s1C, s2C, r0C, r1C, r2C, r3C, opC].some((v) => v < 0)
@@ -642,8 +688,10 @@ export function parseSplatPly(
       covariance[v6 + 4] = m23;
       covariance[v6 + 5] = m33;
 
-      const v4 = i * 4;
-      rgba[v4 + 3] = clamp255(alpha * 255);
+      const a = clamp255(alpha * 255);
+      let r = clamp255(defaultRGBA[0]);
+      let g = clamp255(defaultRGBA[1]);
+      let b = clamp255(defaultRGBA[2]);
 
       if (rC >= 0 && gC >= 0 && bC >= 0) {
         // ASCII ambiguous: assume 0..1 floats if <=1 else bytes
@@ -652,10 +700,19 @@ export function parseSplatPly(
         const bv = Number(parts[bC]);
 
         const asFloat01 = rv <= 1 && gv <= 1 && bv <= 1;
-        rgba[v4 + 0] = clamp255(asFloat01 ? rv * 255 : rv);
-        rgba[v4 + 1] = clamp255(asFloat01 ? gv * 255 : gv);
-        rgba[v4 + 2] = clamp255(asFloat01 ? bv * 255 : bv);
+        r = clamp255(asFloat01 ? rv * 255 : rv);
+        g = clamp255(asFloat01 ? gv * 255 : gv);
+        b = clamp255(asFloat01 ? bv * 255 : bv);
+      } else if (f0C >= 0 && f1C >= 0 && f2C >= 0) {
+        const f0 = Number(parts[f0C]);
+        const f1 = Number(parts[f1C]);
+        const f2 = Number(parts[f2C]);
+        r = clamp255((0.5 + SH_C0 * f0) * 255);
+        g = clamp255((0.5 + SH_C0 * f1) * 255);
+        b = clamp255((0.5 + SH_C0 * f2) * 255);
       }
+
+      rgba[i] = rgbaToUint32(r, g, b, a);
     }
 
     return { count, center, covariance, rgba, format: header.format };

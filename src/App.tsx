@@ -7,6 +7,7 @@ import { BillboardCircleStoragePage } from "./pages/BillboardCircleStoragePage.t
 import { SplatComparePage } from "./pages/SplatComparePage.tsx";
 import { SplatQuadPage } from "./pages/SplatQuadPage.tsx";
 import { PlyHeaderPage } from "./pages/PlyHeaderPage.tsx";
+import { PlyEllipsoidsPage } from "./pages/PlyEllipsoidsPage.tsx";
 
 export default function App() {
   return (
@@ -56,6 +57,12 @@ export default function App() {
           >
             PLY header (cactus)
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
+            to="/ply-ellipsoids"
+          >
+            PLY ellipsoids (instanced)
+          </NavLink>
         </nav>
       </aside>
 
@@ -72,6 +79,7 @@ export default function App() {
             element={<BillboardCircleStoragePage />}
           />
           <Route path="/ply-header" element={<PlyHeaderPage />} />
+          <Route path="/ply-ellipsoids" element={<PlyEllipsoidsPage />} />
           <Route path="/gaussian-splat" element={<Navigate to="/covariance" replace />} />
           <Route path="*" element={<Navigate to="/covariance" replace />} />
         </Routes>

@@ -45,7 +45,11 @@ export function PlyHeaderPage() {
           ms: Math.round((t1 - t0) * 100) / 100,
           firstCenter: Array.from(splat.center.slice(0, 6)),
           firstCovariance: Array.from(splat.covariance.slice(0, 12)),
-          firstRGBA: Array.from(splat.rgba.slice(0, 8)),
+          firstRGBA8: Array.from(
+            splat.rgba
+              .slice(0, 2)
+              .flatMap((u) => [u & 255, (u >>> 8) & 255, (u >>> 16) & 255, (u >>> 24) & 255])
+          ),
         });
 
         setStatus("done (header + parse logged to console)");
