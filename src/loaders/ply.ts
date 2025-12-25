@@ -8,7 +8,7 @@
 //   import { parseSplatPly } from "./splat_ply_parser";
 //   const bytes = new Uint8Array(arrayBuffer);
 //   const splat = parseSplatPly(bytes);
-//   console.log(splat.count, splat.center, splat.covA, splat.covB, splat.rgba);
+//   console.log(splat.count, splat.center, splat.covariance, splat.rgba);
 
 export type PlyFormat = "ascii" | "binary_little_endian" | "binary_big_endian";
 
@@ -47,8 +47,8 @@ export type PlyHeader = {
 export type SplatPlyBuffers = {
   count: number;
   center: Float32Array; // 3N
-  covA: Float32Array; // 3N  (m11,m12,m13)
-  covB: Float32Array; // 3N  (m22,m23,m33)
+  /** 6N floats: [m11,m12,m13,m22,m23,m33] per splat (symmetric 3x3 covariance). */
+  covariance: Float32Array;
   rgba: Uint8Array; // 4N  (0..255)
   format: PlyFormat;
 };
@@ -396,8 +396,7 @@ export function parseSplatPly(
   const count = el.count;
 
   const center = new Float32Array(count * 3);
-  const covA = new Float32Array(count * 3);
-  const covB = new Float32Array(count * 3);
+  const covariance = new Float32Array(count * 6);
   const rgba = new Uint8Array(count * 4);
 
   // init default colors
@@ -518,13 +517,13 @@ export function parseSplatPly(
       center[v3 + 1] = cy;
       center[v3 + 2] = cz;
 
-      covA[v3 + 0] = m11;
-      covA[v3 + 1] = m12;
-      covA[v3 + 2] = m13;
-
-      covB[v3 + 0] = m22;
-      covB[v3 + 1] = m23;
-      covB[v3 + 2] = m33;
+      const v6 = i * 6;
+      covariance[v6 + 0] = m11;
+      covariance[v6 + 1] = m12;
+      covariance[v6 + 2] = m13;
+      covariance[v6 + 3] = m22;
+      covariance[v6 + 4] = m23;
+      covariance[v6 + 5] = m33;
 
       const v4 = i * 4;
       rgba[v4 + 3] = clamp255(alpha * 255);
@@ -551,7 +550,7 @@ export function parseSplatPly(
       }
     }
 
-    return { count, center, covA, covB, rgba, format: header.format };
+    return { count, center, covariance, rgba, format: header.format };
   }
 
   // ASCII fallback (slow; OK for debugging)
@@ -635,13 +634,13 @@ export function parseSplatPly(
       center[v3 + 1] = cy;
       center[v3 + 2] = cz;
 
-      covA[v3 + 0] = m11;
-      covA[v3 + 1] = m12;
-      covA[v3 + 2] = m13;
-
-      covB[v3 + 0] = m22;
-      covB[v3 + 1] = m23;
-      covB[v3 + 2] = m33;
+      const v6 = i * 6;
+      covariance[v6 + 0] = m11;
+      covariance[v6 + 1] = m12;
+      covariance[v6 + 2] = m13;
+      covariance[v6 + 3] = m22;
+      covariance[v6 + 4] = m23;
+      covariance[v6 + 5] = m33;
 
       const v4 = i * 4;
       rgba[v4 + 3] = clamp255(alpha * 255);
@@ -659,7 +658,7 @@ export function parseSplatPly(
       }
     }
 
-    return { count, center, covA, covB, rgba, format: header.format };
+    return { count, center, covariance, rgba, format: header.format };
   }
 
   throw new Error(`PLY: unsupported format ${header.format}`);
