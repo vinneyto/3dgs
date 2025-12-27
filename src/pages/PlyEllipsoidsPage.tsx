@@ -1,7 +1,7 @@
 import { OrbitControls } from "@react-three/drei";
 import { useControls } from "leva";
 import { useEffect, useMemo, useState } from "react";
-import { DoubleSide, MeshStandardNodeMaterial, NoBlending } from "three/webgpu";
+import { DoubleSide, MeshStandardNodeMaterial } from "three/webgpu";
 import { instancedArray } from "three/tsl";
 import { parseSplatPly } from "../loaders/ply";
 import { createInstancedEllipsoidPlyNodes } from "../tsl/gaussian/instancedEllipsoidPly";
@@ -93,10 +93,10 @@ export function PlyEllipsoidsPage() {
     if (!shader) return null;
     const m = new MeshStandardNodeMaterial({ side: DoubleSide });
     // PERF: disable depth test + blending as requested (fastest, but visually incorrect for overlap).
-    m.depthTest = false;
-    m.depthWrite = false;
-    m.transparent = false;
-    m.blending = NoBlending;
+    m.depthTest = true;
+    m.depthWrite = true;
+    // m.transparent = false;
+    // m.blending = NoBlending;
     m.vertexNode = shader.nodes.vertexNode;
     m.normalNode = shader.nodes.normalNode;
     m.colorNode = shader.nodes.colorNode;
