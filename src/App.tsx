@@ -8,6 +8,7 @@ import { SplatComparePage } from "./pages/SplatComparePage.tsx";
 import { SplatQuadPage } from "./pages/SplatQuadPage.tsx";
 import { PlyHeaderPage } from "./pages/PlyHeaderPage.tsx";
 import { PlyEllipsoidsPage } from "./pages/PlyEllipsoidsPage.tsx";
+import { RustWasmDemoPage } from "./pages/RustWasmDemoPage.tsx";
 
 export default function App() {
   return (
@@ -63,6 +64,12 @@ export default function App() {
           >
             PLY ellipsoids (instanced)
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
+            to="/rust-wasm"
+          >
+            Rust → WASM demo
+          </NavLink>
         </nav>
       </aside>
 
@@ -80,6 +87,7 @@ export default function App() {
           />
           <Route path="/ply-header" element={<PlyHeaderPage />} />
           <Route path="/ply-ellipsoids" element={<PlyEllipsoidsPage />} />
+          <Route path="/rust-wasm" element={<RustWasmDemoPage />} />
           <Route path="/gaussian-splat" element={<Navigate to="/covariance" replace />} />
           <Route path="*" element={<Navigate to="/covariance" replace />} />
         </Routes>

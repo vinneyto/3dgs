@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "wasm:build": "wasm-pack build wasm --target web --out-dir ../src/wasm/pkg --out-name rust_wasm",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

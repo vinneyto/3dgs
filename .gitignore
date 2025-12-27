@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Rust / WASM
+wasm/target/
+wasm/**/.wasm-pack/
