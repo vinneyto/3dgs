@@ -1,125 +1,78 @@
 import { OrbitControls } from "@react-three/drei";
 import { useControls } from "leva";
-import { useEffect, useMemo, useState } from "react";
-import { DoubleSide, MeshStandardNodeMaterial } from "three/webgpu";
-import { instancedArray } from "three/tsl";
-import { parseSplatPly } from "../loaders/ply";
-import { createInstancedEllipsoidPlyNodes } from "../tsl/gaussian/instancedEllipsoidPly";
+import { useRef } from "react";
+import type { InstancedMesh } from "three";
+import { useDepthKeyCompute } from "../hooks/useDepthKeyCompute";
+import { useInstancedEllipsoidPlyShader } from "../hooks/useInstancedEllipsoidPlyShader";
+import { usePlyEllipsoidsMaterial } from "../hooks/usePlyEllipsoidsMaterial";
+import { usePlyEllipsoidBuffersFromData } from "../hooks/usePlyEllipsoidBuffers";
+import { usePlyPacked, type PlyPacked } from "../hooks/usePlyPacked";
 import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 const PLY_URL = "/cactus_splat3_30kSteps_142k_splats.ply";
 
-type PlyPacked = {
-  count: number;
-  center: Float32Array; // 3N
-  covariance: Float32Array; // 6N (two vec3 per splat)
-  rgba: Uint32Array; // N packed RGBA8
-};
-
-export function PlyEllipsoidsPage() {
-  const { cutoff, metalness, roughness } = useControls("PLY ellipsoids", {
+function PlyEllipsoidsScene({ data }: { data: PlyPacked }) {
+  const {
+    cutoff,
+    metalness,
+    roughness,
+    useDepth,
+    computeDepthKeys,
+    debugDepth,
+  } = useControls("PLY ellipsoids", {
     cutoff: { value: 1.0, min: 0.05, max: 8.0, step: 0.01 },
     roughness: { value: 0.8, min: 0, max: 1, step: 0.01 },
     metalness: { value: 0.0, min: 0, max: 1, step: 0.01 },
+    useDepth: { value: true },
+    computeDepthKeys: { value: true },
+    debugDepth: { value: false },
   });
 
-  const [status, setStatus] = useState("idle");
-  const [data, setData] = useState<PlyPacked | null>(null);
+  const { centersBuf, covBuf, rgbaBuf } = usePlyEllipsoidBuffersFromData(data);
 
-  useEffect(() => {
-    const ac = new AbortController();
-    (async () => {
-      try {
-        setStatus(`fetching: ${PLY_URL}`);
-        const res = await fetch(PLY_URL, { signal: ac.signal });
-        if (!res.ok)
-          throw new Error(`fetch failed: ${res.status} ${res.statusText}`);
+  const shader = useInstancedEllipsoidPlyShader(centersBuf, covBuf, rgbaBuf);
 
-        setStatus("reading arrayBuffer…");
-        const buf = await res.arrayBuffer();
-        const bytes = new Uint8Array(buf);
+  const meshRef = useRef<InstancedMesh | null>(null);
 
-        setStatus("parsing PLY…");
-        const splat = parseSplatPly(bytes);
+  const depthKeysBuf = useDepthKeyCompute({
+    enabled: computeDepthKeys,
+    centersBuf: shader.buffers.centers,
+    count: data.count,
+    meshRef,
+  });
 
-        const count = splat.count;
-        // No repacking for center/covariance: they are already Float32Array(3N) and Float32Array(6N).
-        // rgba is already packed Uint32Array(N): r|(g<<8)|(b<<16)|(a<<24)
+  const material = usePlyEllipsoidsMaterial({
+    shader,
+    useDepth,
+    debugDepth,
+    depthKeysBuf,
+    cutoff,
+    roughness,
+    metalness,
+  });
 
-        console.log("[PLY ellipsoids buffers]", {
-          count,
-          centerLen: splat.center.length,
-          covarianceLen: splat.covariance.length,
-          rgbaLen: splat.rgba.length,
-        });
+  return (
+    <>
+      <OrbitControls makeDefault enableDamping />
+      <ambientLight intensity={0.25} />
+      <directionalLight position={[4, 6, 3]} intensity={1.2} />
+      <gridHelper args={[10, 10]} />
 
-        setData({
-          count,
-          center: splat.center,
-          covariance: splat.covariance,
-          rgba: splat.rgba,
-        });
-        setStatus("ready");
-      } catch (e) {
-        if ((e as any)?.name === "AbortError") return;
-        console.error(e);
-        setStatus(`error: ${(e as Error)?.message ?? String(e)}`);
-      }
-    })();
+      <instancedMesh
+        args={[undefined, undefined, data.count]}
+        frustumCulled={false}
+        scale={[1, -1, 1]}
+        ref={meshRef}
+      >
+        <sphereGeometry args={[1, 24, 24]} />
+        <primitive object={material} attach="material" />
+      </instancedMesh>
+    </>
+  );
+}
 
-    return () => ac.abort();
-  }, []);
-
-  const centersBuf = useMemo(() => {
-    if (!data) return null;
-    return instancedArray(data.count, "vec3");
-  }, [data]);
-  const covBuf = useMemo(() => {
-    if (!data) return null;
-    // 2 vec3 entries per splat => 2N elements
-    return instancedArray(data.count * 2, "vec3");
-  }, [data]);
-  const rgbaBuf = useMemo(() => {
-    if (!data) return null;
-    return instancedArray(data.count, "uint");
-  }, [data]);
-
-  const shader = useMemo(() => {
-    if (!centersBuf || !covBuf || !rgbaBuf) return null;
-    return createInstancedEllipsoidPlyNodes(centersBuf, covBuf, rgbaBuf);
-  }, [centersBuf, covBuf, rgbaBuf]);
-
-  const material = useMemo(() => {
-    if (!shader) return null;
-    const m = new MeshStandardNodeMaterial({ side: DoubleSide });
-    // PERF: disable depth test + blending as requested (fastest, but visually incorrect for overlap).
-    m.depthTest = true;
-    m.depthWrite = true;
-    // m.transparent = false;
-    // m.blending = NoBlending;
-    m.vertexNode = shader.nodes.vertexNode;
-    m.normalNode = shader.nodes.normalNode;
-    m.colorNode = shader.nodes.colorNode;
-    m.opacityNode = shader.nodes.opacityNode as never;
-    return m;
-  }, [shader]);
-
-  useEffect(() => {
-    if (!data || !centersBuf || !covBuf || !rgbaBuf) return;
-    (centersBuf.value.array as Float32Array).set(data.center);
-    (covBuf.value.array as Float32Array).set(data.covariance);
-    (rgbaBuf.value.array as Uint32Array).set(data.rgba);
-    centersBuf.value.needsUpdate = true;
-    covBuf.value.needsUpdate = true;
-    rgbaBuf.value.needsUpdate = true;
-  }, [data, centersBuf, covBuf, rgbaBuf]);
-
-  useEffect(() => {
-    if (!shader || !material) return;
-    shader.uniforms.uCutoff.value = cutoff;
-    material.roughness = roughness;
-    material.metalness = metalness;
-  }, [shader, material, cutoff, roughness, metalness]);
+export function PlyEllipsoidsPage() {
+  const { status, data } = usePlyPacked(PLY_URL);
 
   return (
     <div className="page">
@@ -134,26 +87,14 @@ export function PlyEllipsoidsPage() {
         </div>
       </div>
 
-      <WebGPUCanvasFrame
-        camera={{ position: [4, 3, 4], fov: 50 }}
-        gl={{ antialias: false }}
-      >
-        <OrbitControls makeDefault enableDamping />
-        <ambientLight intensity={0.25} />
-        <directionalLight position={[4, 6, 3]} intensity={1.2} />
-        <gridHelper args={[10, 10]} />
-
-        {data && material ? (
-          <instancedMesh
-            args={[undefined, undefined, data.count]}
-            frustumCulled={false}
-            scale={[1, -1, 1]}
-          >
-            <sphereGeometry args={[1, 24, 24]} />
-            <primitive object={material} attach="material" />
-          </instancedMesh>
-        ) : null}
-      </WebGPUCanvasFrame>
+      {data ? (
+        <WebGPUCanvasFrame
+          camera={{ position: [4, 3, 4], fov: 50, near: 0.1, far: 100 }}
+          gl={{ antialias: false }}
+        >
+          <PlyEllipsoidsScene data={data} />
+        </WebGPUCanvasFrame>
+      ) : null}
     </div>
   );
 }

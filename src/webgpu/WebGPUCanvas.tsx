@@ -31,7 +31,6 @@ export function WebGPUCanvas({
     <Canvas
       {...props}
       gl={async (glProps) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const renderer = new THREE.WebGPURenderer({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(glProps as any),

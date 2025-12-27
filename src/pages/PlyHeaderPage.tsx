@@ -61,7 +61,7 @@ export function PlyHeaderPage() {
 
         setStatus("done (header + parse logged to console)");
       } catch (e) {
-        if ((e as any)?.name === "AbortError") return;
+        if ((e as Error)?.name === "AbortError") return;
         console.error(e);
         setStatus(`error: ${(e as Error)?.message ?? String(e)}`);
       }

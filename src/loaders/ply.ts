@@ -32,6 +32,19 @@ export type PlyProperty =
       itemType: PlyScalarType;
     };
 
+type PlyScalarProperty = Extract<PlyProperty, { kind: "scalar" }>;
+type PlyPropertyEntry = { prop: PlyProperty; index: number };
+type PlyScalarPropertyEntry = { prop: PlyScalarProperty; index: number };
+
+function assertScalarEntry(
+  entry: PlyPropertyEntry,
+  nameForError: string
+): asserts entry is PlyScalarPropertyEntry {
+  if (entry.prop.kind !== "scalar") {
+    throw new Error(`PLY: property "${nameForError}" must be scalar`);
+  }
+}
+
 export type PlyElement = {
   name: string;
   count: number;
@@ -302,9 +315,9 @@ export function parseHeader(bytes: Uint8Array): {
 function getBinaryReader(type: PlyScalarType) {
   switch (type) {
     case "char":
-      return (dv: DataView, o: number, _: boolean) => dv.getInt8(o);
+      return (dv: DataView, o: number) => dv.getInt8(o);
     case "uchar":
-      return (dv: DataView, o: number, _: boolean) => dv.getUint8(o);
+      return (dv: DataView, o: number) => dv.getUint8(o);
     case "short":
       return (dv: DataView, o: number, le: boolean) => dv.getInt16(o, le);
     case "ushort":
@@ -378,12 +391,18 @@ export function parseSplatPly(
   const py = pickName(pmap, ["y", "pos_y", "position_y"]);
   const pz = pickName(pmap, ["z", "pos_z", "position_z"]);
   if (!px || !py || !pz) throw new Error("PLY: missing x/y/z in vertex");
+  assertScalarEntry(px, "x");
+  assertScalarEntry(py, "y");
+  assertScalarEntry(pz, "z");
 
   const s0 = pickName(pmap, ["scale_0", "sx", "scale_x", "scalex"]);
   const s1 = pickName(pmap, ["scale_1", "sy", "scale_y", "scaley"]);
   const s2 = pickName(pmap, ["scale_2", "sz", "scale_z", "scalez"]);
   if (!s0 || !s1 || !s2)
     throw new Error("PLY: missing scale (scale_0..2 or sx/sy/sz) in vertex");
+  assertScalarEntry(s0, "scale_0");
+  assertScalarEntry(s1, "scale_1");
+  assertScalarEntry(s2, "scale_2");
 
   const r0 = pickName(pmap, ["rot_0", "qx"]);
   const r1 = pickName(pmap, ["rot_1", "qy"]);
@@ -393,9 +412,14 @@ export function parseSplatPly(
     throw new Error(
       "PLY: missing rotation (rot_0..3 or qx/qy/qz/qw) in vertex"
     );
+  assertScalarEntry(r0, "rot_0");
+  assertScalarEntry(r1, "rot_1");
+  assertScalarEntry(r2, "rot_2");
+  assertScalarEntry(r3, "rot_3");
 
   const op = pickName(pmap, ["opacity", "alpha", "opac"]);
   if (!op) throw new Error('PLY: missing "opacity" (or alpha) in vertex');
+  assertScalarEntry(op, "opacity");
 
   // Optional color
   const pr = pickName(pmap, ["red", "r"]);
@@ -426,8 +450,8 @@ export function parseSplatPly(
     const littleEndian = header.format === "binary_little_endian";
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
-    // build offsets and stride from property order
-    const props = el.properties as Extract<PlyProperty, { kind: "scalar" }>[];
+    // build offsets and stride from property order (safe because we rejected list props above)
+    const props = el.properties as PlyScalarProperty[];
     const offsets: number[] = [];
     let stride = 0;
     for (const p of props) {
@@ -457,20 +481,20 @@ export function parseSplatPly(
       ir3 = getIdx(r3);
     const iop = getIdx(op);
 
-    const tx = (px.prop as any).type as PlyScalarType;
-    const ty = (py.prop as any).type as PlyScalarType;
-    const tz = (pz.prop as any).type as PlyScalarType;
+    const tx = px.prop.type;
+    const ty = py.prop.type;
+    const tz = pz.prop.type;
 
-    const ts0 = (s0.prop as any).type as PlyScalarType;
-    const ts1 = (s1.prop as any).type as PlyScalarType;
-    const ts2 = (s2.prop as any).type as PlyScalarType;
+    const ts0 = s0.prop.type;
+    const ts1 = s1.prop.type;
+    const ts2 = s2.prop.type;
 
-    const tr0t = (r0.prop as any).type as PlyScalarType;
-    const tr1t = (r1.prop as any).type as PlyScalarType;
-    const tr2t = (r2.prop as any).type as PlyScalarType;
-    const tr3t = (r3.prop as any).type as PlyScalarType;
+    const tr0t = r0.prop.type;
+    const tr1t = r1.prop.type;
+    const tr2t = r2.prop.type;
+    const tr3t = r3.prop.type;
 
-    const topt = (op.prop as any).type as PlyScalarType;
+    const topt = op.prop.type;
 
     let hasColor = false;
     let ir = -1,
@@ -482,12 +506,15 @@ export function parseSplatPly(
 
     if (pr && pg && pb) {
       hasColor = true;
+      assertScalarEntry(pr, "red");
+      assertScalarEntry(pg, "green");
+      assertScalarEntry(pb, "blue");
       ir = pr.index;
       ig = pg.index;
       ib = pb.index;
-      tr = (pr.prop as any).type as PlyScalarType;
-      tg = (pg.prop as any).type as PlyScalarType;
-      tb = (pb.prop as any).type as PlyScalarType;
+      tr = pr.prop.type;
+      tg = pg.prop.type;
+      tb = pb.prop.type;
     }
 
     let hasFDC = false;
@@ -500,12 +527,15 @@ export function parseSplatPly(
 
     if (!hasColor && fdc0 && fdc1 && fdc2) {
       hasFDC = true;
+      assertScalarEntry(fdc0, "f_dc_0");
+      assertScalarEntry(fdc1, "f_dc_1");
+      assertScalarEntry(fdc2, "f_dc_2");
       if0 = fdc0.index;
       if1 = fdc1.index;
       if2 = fdc2.index;
-      tf0 = (fdc0.prop as any).type as PlyScalarType;
-      tf1 = (fdc1.prop as any).type as PlyScalarType;
-      tf2 = (fdc2.prop as any).type as PlyScalarType;
+      tf0 = fdc0.prop.type;
+      tf1 = fdc1.prop.type;
+      tf2 = fdc2.prop.type;
     }
 
     let base = dataOffset;
