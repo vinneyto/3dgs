@@ -6,7 +6,8 @@ import { useDepthKeyCompute } from "../hooks/useDepthKeyCompute";
 import { useInstancedEllipsoidPlyShader } from "../hooks/useInstancedEllipsoidPlyShader";
 import { usePlyEllipsoidsMaterial } from "../hooks/usePlyEllipsoidsMaterial";
 import { usePlyEllipsoidBuffersFromData } from "../hooks/usePlyEllipsoidBuffers";
-import { usePlyPacked, type PlyPacked } from "../hooks/usePlyPacked";
+import { type PlyPacked } from "../hooks/usePlyPacked";
+import { usePlyPackedRust } from "../hooks/usePlyPackedRust";
 import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 const PLY_URL = "/cactus_splat3_30kSteps_142k_splats.ply";
@@ -72,7 +73,7 @@ function PlyEllipsoidsScene({ data }: { data: PlyPacked }) {
 }
 
 export function PlyEllipsoidsPage() {
-  const { status, data } = usePlyPacked(PLY_URL);
+  const { status, data } = usePlyPackedRust(PLY_URL);
 
   return (
     <div className="page">
