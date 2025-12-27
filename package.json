@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "wasm:build": "wasm-pack build wasm --target web --out-dir ../src/wasm/pkg --out-name rust_wasm",
+    "wasm:watch": "node scripts/wasm-watch.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
