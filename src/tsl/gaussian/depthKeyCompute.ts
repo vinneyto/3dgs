@@ -2,6 +2,7 @@ import type { ComputeNode, StorageBufferNode } from "three/webgpu";
 import { Matrix4 } from "three/webgpu";
 import {
   Fn,
+  If,
   bitXor,
   int,
   instanceIndex,
@@ -46,20 +47,24 @@ export function createDepthKeyCompute(
   );
 
   const compute: ComputeNode = Fn(() => {
-    const center = centers.element(instanceIndex);
+    // three.js does not auto-guard out-of-range invocations when count is not a multiple of workgroup size.
+    If(instanceIndex.lessThan(uint(count)), () => {
+      const center = centers.element(instanceIndex);
 
-    const clipPos = uProjectionMatrix
-      .mul(uModelViewMatrix)
-      .mul(vec4(center, 1.0));
+      const clipPos = uProjectionMatrix
+        .mul(uModelViewMatrix)
+        .mul(vec4(center, 1.0));
 
-    // Quantize (z without divide) to integer bins.
-    const di = int(mul(clipPos.z, 4096.0));
+      // Quantize (z without divide) to integer bins.
+      const di = int(mul(clipPos.z, 4096.0));
 
-    // Make signed int sortable as uint (flip sign bit).
-    const key = bitXor(uint(di), uint(0x80000000));
-    depthKeys.element(instanceIndex).assign(key);
+      // Make signed int sortable as uint (flip sign bit).
+      const key = bitXor(uint(di), uint(0x80000000));
+      depthKeys.element(instanceIndex).assign(key);
+    });
   })()
-    .compute(count)
+    // Explicit workgroup size (default is [64,1,1])
+    .compute(count, [256, 1, 1])
     .setName("ComputeDepthKeys");
 
   return {

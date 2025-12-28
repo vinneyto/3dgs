@@ -53,22 +53,28 @@ export type InstancedEllipsoidPlyNodes = {
     centers: StorageBufferNode;
     cov: StorageBufferNode;
     rgba: StorageBufferNode;
+    sortedIndices?: StorageBufferNode | null;
   };
 };
 
 export function createInstancedEllipsoidPlyNodes(
   centers: StorageBufferNode,
   cov: StorageBufferNode,
-  rgba: StorageBufferNode
+  rgba: StorageBufferNode,
+  sortedIndices?: StorageBufferNode | null
 ): InstancedEllipsoidPlyNodes {
   const uCutoff = uniform(1.0).setName("uCutoff");
   const { radius } = sqrtCutoff(uCutoff);
 
-  const center = centers.element(instanceIndex);
-  const rgbaPacked = rgba.element(instanceIndex);
+  const splatIndex = sortedIndices
+    ? sortedIndices.element(instanceIndex)
+    : instanceIndex;
+
+  const center = centers.element(splatIndex);
+  const rgbaPacked = rgba.element(splatIndex);
 
   // cov entries live at indices (2*i) and (2*i+1)
-  const covBase = instanceIndex.mul(2);
+  const covBase = splatIndex.mul(2);
   const covA3 = cov.element(covBase);
   const covB3 = cov.element(add(covBase, 1));
 
@@ -96,6 +102,6 @@ export function createInstancedEllipsoidPlyNodes(
   return {
     nodes: { vertexNode, normalNode, colorNode, opacityNode },
     uniforms: { uCutoff },
-    buffers: { centers, cov, rgba },
+    buffers: { centers, cov, rgba, sortedIndices: sortedIndices ?? null },
   };
 }

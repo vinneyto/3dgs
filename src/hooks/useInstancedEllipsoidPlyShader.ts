@@ -8,12 +8,17 @@ import {
 export function useInstancedEllipsoidPlyShader(
   centersBuf: StorageBufferNode,
   covBuf: StorageBufferNode,
-  rgbaBuf: StorageBufferNode
+  rgbaBuf: StorageBufferNode,
+  sortedIndicesBuf?: StorageBufferNode | null
 ): InstancedEllipsoidPlyNodes {
   return useMemo(
-    () => createInstancedEllipsoidPlyNodes(centersBuf, covBuf, rgbaBuf),
-    [centersBuf, covBuf, rgbaBuf]
+    () =>
+      createInstancedEllipsoidPlyNodes(
+        centersBuf,
+        covBuf,
+        rgbaBuf,
+        sortedIndicesBuf
+      ),
+    [centersBuf, covBuf, rgbaBuf, sortedIndicesBuf]
   );
 }
-
-

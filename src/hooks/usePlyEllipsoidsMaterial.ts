@@ -31,22 +31,30 @@ export function usePlyEllipsoidsMaterial({
   | MeshBasicNodeMaterial {
   const material = useMemo(() => {
     const isDebugDepth = debugDepth && depthKeysBuf;
+    const isSorted = !!shader.buffers.sortedIndices;
+    const enableDepth = useDepth && !isSorted;
 
     if (isDebugDepth) {
       // Debug view should be unlit, so colors match keys directly.
       const m = new MeshBasicNodeMaterial({ side: DoubleSide });
-      m.depthTest = useDepth;
-      m.depthWrite = useDepth;
+      // When sorting is enabled, disable depth buffer usage entirely to avoid Z-fighting/popping
+      // against other scene geometry (grid, etc) and between translucent instances.
+      m.depthTest = enableDepth;
+      m.depthWrite = enableDepth;
       m.vertexNode = shader.nodes.vertexNode;
-      const dbg = createDepthDebugColorOpacity(depthKeysBuf);
+      const dbg = createDepthDebugColorOpacity(
+        depthKeysBuf,
+        shader.buffers.sortedIndices
+      );
       m.colorNode = dbg.colorNode;
       m.opacityNode = dbg.opacityNode;
       return m;
     }
 
     const m = new MeshStandardNodeMaterial({ side: DoubleSide });
-    m.depthTest = useDepth;
-    m.depthWrite = useDepth;
+    // Same policy as above: if sorted, do not use depth buffer.
+    m.depthTest = enableDepth;
+    m.depthWrite = enableDepth;
     m.vertexNode = shader.nodes.vertexNode;
     m.normalNode = shader.nodes.normalNode;
     m.colorNode = shader.nodes.colorNode;

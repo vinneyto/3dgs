@@ -9,13 +9,19 @@ import {
   vec3,
 } from "three/tsl";
 
-export function createDepthDebugColorOpacity(depthKeys: StorageBufferNode): {
+export function createDepthDebugColorOpacity(
+  depthKeys: StorageBufferNode,
+  sortedIndices?: StorageBufferNode | null
+): {
   colorNode: Node;
   opacityNode: Node;
 } {
   // depthKeys stores GaussianSplats3D-style sortable keys:
   // key = uint(int(z * 4096)) XOR 0x80000000
-  const keyU = depthKeys.element(instanceIndex);
+  const splatIndex = sortedIndices
+    ? sortedIndices.element(instanceIndex)
+    : instanceIndex;
+  const keyU = depthKeys.element(splatIndex);
   const signedBits = bitXor(keyU, uint(0x80000000));
 
   // For visualization we use the low 16 bits (fine variation of z*4096) mapped to 0..1.

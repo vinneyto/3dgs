@@ -6,6 +6,7 @@ import { useDepthKeyCompute } from "../hooks/useDepthKeyCompute";
 import { useInstancedEllipsoidPlyShader } from "../hooks/useInstancedEllipsoidPlyShader";
 import { usePlyEllipsoidsMaterial } from "../hooks/usePlyEllipsoidsMaterial";
 import { usePlyEllipsoidBuffersFromData } from "../hooks/usePlyEllipsoidBuffers";
+import { useRadixSortDepthIndices } from "../hooks/useRadixSortDepthIndices";
 import { type PlyPacked } from "../hooks/usePlyPacked";
 import { usePlyPackedRust } from "../hooks/usePlyPackedRust";
 import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
@@ -19,6 +20,7 @@ function PlyEllipsoidsScene({ data }: { data: PlyPacked }) {
     roughness,
     useDepth,
     computeDepthKeys,
+    sortByDepth,
     debugDepth,
   } = useControls("PLY ellipsoids", {
     cutoff: { value: 1.0, min: 0.05, max: 8.0, step: 0.01 },
@@ -26,21 +28,34 @@ function PlyEllipsoidsScene({ data }: { data: PlyPacked }) {
     metalness: { value: 0.0, min: 0, max: 1, step: 0.01 },
     useDepth: { value: true },
     computeDepthKeys: { value: true },
+    sortByDepth: { value: true },
     debugDepth: { value: false },
   });
 
   const { centersBuf, covBuf, rgbaBuf } = usePlyEllipsoidBuffersFromData(data);
 
-  const shader = useInstancedEllipsoidPlyShader(centersBuf, covBuf, rgbaBuf);
-
   const meshRef = useRef<InstancedMesh | null>(null);
 
   const depthKeysBuf = useDepthKeyCompute({
     enabled: computeDepthKeys,
-    centersBuf: shader.buffers.centers,
+    centersBuf,
     count: data.count,
     meshRef,
   });
+
+  const sortedIndicesBuf = useRadixSortDepthIndices({
+    enabled: sortByDepth && computeDepthKeys,
+    depthKeysBuf,
+    count: data.count,
+    descending: true,
+  });
+
+  const shader = useInstancedEllipsoidPlyShader(
+    centersBuf,
+    covBuf,
+    rgbaBuf,
+    sortedIndicesBuf
+  );
 
   const material = usePlyEllipsoidsMaterial({
     shader,
