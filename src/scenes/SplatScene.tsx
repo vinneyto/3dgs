@@ -29,7 +29,6 @@ export function SplatScene({
     debugDepth,
     // gaussian look
     splatScale,
-    kernel2DSize,
     maxScreenSpaceSplatSize,
     antialiasCompensation,
     opacityMultiplier,
@@ -53,7 +52,6 @@ export function SplatScene({
 
     // Gaussian quad params (used when renderAs === "gaussian")
     splatScale: { value: 1.0, min: 0.1, max: 4.0, step: 0.01 },
-    kernel2DSize: { value: 0.3, min: 0.0, max: 4.0, step: 0.01 },
     maxScreenSpaceSplatSize: { value: 2048, min: 64, max: 4096, step: 1 },
     antialiasCompensation: { value: true },
     opacityMultiplier: { value: 1.0, min: 0, max: 2, step: 0.01 },
@@ -109,7 +107,6 @@ export function SplatScene({
     debugDepth,
     depthKeysBuf,
     splatScale,
-    kernel2DSize,
     maxScreenSpaceSplatSize,
     antialiasCompensation,
     opacityMultiplier,
@@ -146,5 +143,3 @@ export function SplatScene({
     </>
   );
 }
-
-

@@ -10,7 +10,6 @@ export type PlySplatQuadsMaterialParams = {
   debugDepth: boolean;
   depthKeysBuf: StorageBufferNode | null;
   splatScale: number;
-  kernel2DSize: number;
   maxScreenSpaceSplatSize: number;
   antialiasCompensation: boolean;
   opacityMultiplier: number;
@@ -24,7 +23,6 @@ export function usePlySplatQuadsMaterial({
   debugDepth,
   depthKeysBuf,
   splatScale,
-  kernel2DSize,
   maxScreenSpaceSplatSize,
   antialiasCompensation,
   opacityMultiplier,
@@ -59,7 +57,6 @@ export function usePlySplatQuadsMaterial({
 
   useEffect(() => {
     shader.uniforms.uSplatScale.value = splatScale;
-    shader.uniforms.uKernel2DSize.value = kernel2DSize;
     shader.uniforms.uMaxScreenSpaceSplatSize.value = maxScreenSpaceSplatSize;
     shader.uniforms.uAntialiasCompensation.value = antialiasCompensation
       ? 1.0
@@ -72,7 +69,6 @@ export function usePlySplatQuadsMaterial({
   }, [
     shader,
     splatScale,
-    kernel2DSize,
     maxScreenSpaceSplatSize,
     antialiasCompensation,
     opacityMultiplier,

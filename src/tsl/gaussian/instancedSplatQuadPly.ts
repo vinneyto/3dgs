@@ -7,6 +7,7 @@ import {
   div,
   float,
   instanceIndex,
+  log,
   mat3,
   max,
   min,
@@ -20,8 +21,8 @@ import {
   vec2,
   vec3,
 } from "three/tsl";
-import { unpackCovariance3D } from "./gaussianCommon";
-import { add, bitAnd, exp, shiftRight, vec4 } from "three/tsl";
+import { splatQuadFragmentNodeFn, unpackCovariance3D } from "./gaussianCommon";
+import { add, bitAnd, shiftRight, vec4 } from "three/tsl";
 
 function unpackRGBA8UintToColorOpacity(rgbaPacked: Node): {
   colorNode: Node;
@@ -51,8 +52,6 @@ export type InstancedSplatQuadPlyNodes = {
   uniforms: {
     /** Screen-space scale multiplier for splats (default 1). */
     uSplatScale: ReturnType<typeof uniform<number>>;
-    /** Gaussian blur kernel added to cov2D diagonal in pixel units (default 0.3 like GaussianSplats3D). */
-    uKernel2DSize: ReturnType<typeof uniform<number>>;
     /** Clamp basis vectors to this many pixels in screen space (default 2048 like GaussianSplats3D). */
     uMaxScreenSpaceSplatSize: ReturnType<typeof uniform<number>>;
     /** If 1: apply alpha compensation sqrt(detOrig/detBlur) (default 1). */
@@ -88,10 +87,15 @@ export function createInstancedSplatQuadPlyNodes(
   sortedIndices?: StorageBufferNode | null
 ): InstancedSplatQuadPlyNodes {
   const uSplatScale = uniform(1.0).setName("uSplatScale");
-  const uKernel2DSize = uniform(0.3).setName("uKernel2DSize");
-  const uMaxScreenSpaceSplatSize = uniform(2048.0).setName("uMaxScreenSpaceSplatSize");
+  const uMaxScreenSpaceSplatSize = uniform(2048.0).setName(
+    "uMaxScreenSpaceSplatSize"
+  );
   const uAntialiasCompensation = uniform(1.0).setName("uAntialiasCompensation");
   const uParams = uniform(new Vector3(1.0, 0.0, 0.12)).setName("uParams");
+
+  // Add a constant blur term to the 2D covariance diagonal (in pixel^2 units).
+  // Using 0.3 matches common Gaussian splat renderers' default.
+  const COV_BLUR = 0.3;
 
   const splatIndex = sortedIndices
     ? sortedIndices.element(instanceIndex)
@@ -126,13 +130,12 @@ export function createInstancedSplatQuadPlyNodes(
   // Covariance transforms as: V_world = M * V_local * M^T
   const Vrk = M3.mul(Vlocal).mul(M3.transpose());
 
-  // GaussianSplats3D convention: use sqrt(8) sigma cutoff.
-  const sqrt8 = 2.8284271247461903;
+  const opacityMultiplier = float(uParams.x);
+  const showQuadBg = float(uParams.y);
+  const quadBgAlpha = float(uParams.z);
 
   // quad corners from geometry [-1..1]
   const corner = vec2(positionLocal.x, positionLocal.y);
-  // vPosition is the fragment-space gaussian coordinate (scaled by sqrt8)
-  const vPosition = corner.mul(sqrt8).toVarying("vPosition");
 
   // center in view/clip/ndc
   const viewCenter4 = cameraViewMatrix.mul(vec4(centerWorld, 1.0));
@@ -171,18 +174,33 @@ export function createInstancedSplatQuadPlyNodes(
   const b0 = float(cov2Dm[0].y);
   const d0 = float(cov2Dm[1].y);
 
-  // kernel2DSize is in pixel units, and cov2D entries are in pixel^2, so add directly (as in GaussianSplats3D).
-  // Optional alpha compensation like GaussianSplats3D: alpha *= sqrt(detOrig / detBlur)
+  // Add constant blur to the diagonal.
+  // Optional alpha compensation: alpha *= sqrt(detOrig / detBlur)
   const detOrig = a0.mul(d0).sub(b0.mul(b0));
 
-  const a = a0.add(float(uKernel2DSize));
+  const a = a0.add(float(COV_BLUR));
   const b = b0;
-  const d = d0.add(float(uKernel2DSize));
+  const d = d0.add(float(COV_BLUR));
 
   const detBlur = a.mul(d).sub(b.mul(b));
   const comp = sqrt(max(div(detOrig, detBlur), 0.0));
-  const opacityComp = float(uAntialiasCompensation).greaterThan(0.5).select(comp, 1.0);
-  const vOpacity = float(instanceOpacity).mul(opacityComp).toVarying("vOpacity");
+  const opacityComp = float(uAntialiasCompensation)
+    .greaterThan(0.5)
+    .select(comp, 1.0);
+  // Base opacity used in fragment alpha: alpha = exp(-0.5*A) * vOpacity * opacityMultiplier
+  const opacityBase = float(instanceOpacity).mul(opacityComp);
+  const vOpacity = opacityBase.toVarying("vOpacity");
+
+  // Discard when alpha < 1/255.
+  // exp(-0.5*A) * (opacityBase * opacityMultiplier) < 1/255
+  // => A > 2 * ln(255 * opacityBase * opacityMultiplier)
+  const opacityForCut = max(opacityBase.mul(opacityMultiplier), 1e-6);
+  const cutoffA = max(0.0, log(opacityForCut.mul(255.0)).mul(2.0));
+  const radius = sqrt(max(cutoffA, 1e-8));
+  const vCutoffA = cutoffA.toVarying("vCutoffA");
+
+  // vPosition is the fragment-space gaussian coordinate (scaled by per-splat radius).
+  const vPosition = corner.mul(radius).toVarying("vPosition");
 
   // Eigen decomposition (matches GaussianSplats3D)
   const D = a.mul(d).sub(b.mul(b));
@@ -194,16 +212,18 @@ export function createInstancedSplatQuadPlyNodes(
 
   const ev1Raw = vec2(b, eigenValue1.sub(a));
   const ev1Len = abs(ev1Raw.x).add(abs(ev1Raw.y));
-  const eigenVector1 = ev1Len.lessThan(1e-10).select(vec2(1.0, 0.0), ev1Raw.normalize());
+  const eigenVector1 = ev1Len
+    .lessThan(1e-10)
+    .select(vec2(1.0, 0.0), ev1Raw.normalize());
   const eigenVector2 = vec2(eigenVector1.y, eigenVector1.x.mul(-1.0));
 
   // Basis vectors are in pixel units (since eigenvalues are pixel^2).
   const basisLen1 = min(
-    float(sqrt8).mul(sqrt(eigenValue1)),
+    radius.mul(sqrt(eigenValue1)),
     float(uMaxScreenSpaceSplatSize)
   );
   const basisLen2 = min(
-    float(sqrt8).mul(sqrt(eigenValue2)),
+    radius.mul(sqrt(eigenValue2)),
     float(uMaxScreenSpaceSplatSize)
   );
 
@@ -211,26 +231,28 @@ export function createInstancedSplatQuadPlyNodes(
   const basisVector2Px = eigenVector2.mul(basisLen2).mul(float(uSplatScale));
 
   // pixelOffset = corner.x * basisVector1 + corner.y * basisVector2
-  const pixelOffset = add(basisVector1Px.mul(corner.x), basisVector2Px.mul(corner.y));
+  const pixelOffset = add(
+    basisVector1Px.mul(corner.x),
+    basisVector2Px.mul(corner.y)
+  );
 
   // Convert pixels -> NDC: ndcPerPx = 2 / screenSize
-  const ndcOffset = pixelOffset.mul(vec2(div(2.0, screenSize.x), div(2.0, screenSize.y)));
+  const ndcOffset = pixelOffset.mul(
+    vec2(div(2.0, screenSize.x), div(2.0, screenSize.y))
+  );
   const ndcPos = add(ndcCenter.xy, ndcOffset);
   const posNDC = vec4(vec3(ndcPos, ndcCenter.z), 1.0);
 
-  const opacityMultiplier = float(uParams.x);
-  const showQuadBg = float(uParams.y);
-  const quadBgAlpha = float(uParams.z);
-
-  // Fragment: fixed sqrt8 cutoff (A > 8 discard), opacity = exp(-0.5*A) * (opacity*comp) * opacityMultiplier
-  const A = vec2(vPosition).dot(vec2(vPosition));
-  float(A).greaterThan(8.0).discard();
-  const gaussianAlpha = exp(float(A).mul(-0.5))
-    .mul(float(vOpacity))
-    .mul(float(opacityMultiplier));
-  const baseAlpha = float(quadBgAlpha).mul(float(showQuadBg));
-  const outAlpha = max(baseAlpha, gaussianAlpha);
-  const rgbaOut = vec4(vec3(instanceColor), outAlpha);
+  // Fragment: perform discard inside Fn (more reliable in TSL).
+  const rgbaOut = splatQuadFragmentNodeFn({
+    instanceColor: vec3(instanceColor),
+    instanceOpacity: float(vOpacity),
+    opacityMultiplier,
+    showQuadBg,
+    quadBgAlpha,
+    vPosition,
+    cutoff: vCutoffA,
+  });
 
   return {
     nodes: {
@@ -240,7 +262,6 @@ export function createInstancedSplatQuadPlyNodes(
     },
     uniforms: {
       uSplatScale,
-      uKernel2DSize,
       uMaxScreenSpaceSplatSize,
       uAntialiasCompensation,
       uParams,
@@ -248,5 +269,3 @@ export function createInstancedSplatQuadPlyNodes(
     buffers: { centers, cov, rgba, sortedIndices: sortedIndices ?? null },
   };
 }
-
-

@@ -339,6 +339,14 @@ fn covariance_from_quat_scale(qx: f32, qy: f32, qz: f32, qw: f32, sx: f32, sy: f
     [m11, m12, m13, m22, m23, m33]
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum QuatLayout {
+    /// Quaternion stored as (w, x, y, z). Common for PLY fields `rot_0..rot_3`.
+    Wxyz,
+    /// Quaternion stored as (x, y, z, w). Some PLY variants use `qx,qy,qz,qw`.
+    Xyzw,
+}
+
 fn read_scalar(bytes: &[u8], offset: usize, ty: PlyScalarType, little: bool) -> Result<f64, PlyError> {
     let need = ty.size_bytes();
     if offset + need > bytes.len() {
@@ -436,14 +444,29 @@ pub fn parse_splat_ply_core_with_opts(
     let (is2, ts2) = pick_name(&pmap, &["scale_2", "sz", "scale_z", "scalez"])
         .ok_or_else(|| PlyError::msg("PLY: missing scale_2 in vertex"))?;
 
-    let (ir0, tr0) = pick_name(&pmap, &["rot_0", "qx"])
-        .ok_or_else(|| PlyError::msg("PLY: missing rot_0/qx in vertex"))?;
-    let (ir1, tr1) = pick_name(&pmap, &["rot_1", "qy"])
-        .ok_or_else(|| PlyError::msg("PLY: missing rot_1/qy in vertex"))?;
-    let (ir2, tr2) = pick_name(&pmap, &["rot_2", "qz"])
-        .ok_or_else(|| PlyError::msg("PLY: missing rot_2/qz in vertex"))?;
-    let (ir3, tr3) = pick_name(&pmap, &["rot_3", "qw"])
-        .ok_or_else(|| PlyError::msg("PLY: missing rot_3/qw in vertex"))?;
+    // Quaternion layout:
+    // - If PLY contains rot_0..rot_3, interpret as (w, x, y, z).
+    // - Otherwise, if it contains qx,qy,qz,qw, interpret as (x, y, z, w).
+    let rot0 = pick_name(&pmap, &["rot_0"]);
+    let rot1 = pick_name(&pmap, &["rot_1"]);
+    let rot2 = pick_name(&pmap, &["rot_2"]);
+    let rot3 = pick_name(&pmap, &["rot_3"]);
+    let qx_f = pick_name(&pmap, &["qx"]);
+    let qy_f = pick_name(&pmap, &["qy"]);
+    let qz_f = pick_name(&pmap, &["qz"]);
+    let qw_f = pick_name(&pmap, &["qw"]);
+
+    let (quat_layout, (ir0, tr0), (ir1, tr1), (ir2, tr2), (ir3, tr3)) = if let (Some(a), Some(b), Some(c), Some(d)) =
+        (rot0, rot1, rot2, rot3)
+    {
+        (QuatLayout::Wxyz, a, b, c, d)
+    } else if let (Some(a), Some(b), Some(c), Some(d)) = (qx_f, qy_f, qz_f, qw_f) {
+        (QuatLayout::Xyzw, a, b, c, d)
+    } else {
+        return Err(PlyError::msg(
+            "PLY: missing quaternion fields. Expected either rot_0..rot_3 (wxyz) or qx,qy,qz,qw (xyzw)",
+        ));
+    };
 
     let (iop, top) = pick_name(&pmap, &["opacity", "alpha", "opac"])
         .ok_or_else(|| PlyError::msg("PLY: missing opacity in vertex"))?;
@@ -506,10 +529,14 @@ pub fn parse_splat_ply_core_with_opts(
                     sz = sz.exp();
                 }
 
-                let qx = read(ir0, tr0)? as f32;
-                let qy = read(ir1, tr1)? as f32;
-                let qz = read(ir2, tr2)? as f32;
-                let qw = read(ir3, tr3)? as f32;
+                let a0 = read(ir0, tr0)? as f32;
+                let a1 = read(ir1, tr1)? as f32;
+                let a2 = read(ir2, tr2)? as f32;
+                let a3 = read(ir3, tr3)? as f32;
+                let (qx, qy, qz, qw) = match quat_layout {
+                    QuatLayout::Wxyz => (a1, a2, a3, a0),
+                    QuatLayout::Xyzw => (a0, a1, a2, a3),
+                };
 
                 let opv = read(iop, top)? as f32;
                 let alpha = if assume_logit_opacity { sigmoid(opv) } else { opv };
@@ -605,10 +632,26 @@ pub fn parse_splat_ply_core_with_opts(
             let s0_c = col(&["scale_0", "sx", "scale_x", "scalex"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_0"))?;
             let s1_c = col(&["scale_1", "sy", "scale_y", "scaley"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_1"))?;
             let s2_c = col(&["scale_2", "sz", "scale_z", "scalez"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_2"))?;
-            let r0_c = col(&["rot_0", "qx"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing rot_0"))?;
-            let r1_c = col(&["rot_1", "qy"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing rot_1"))?;
-            let r2_c = col(&["rot_2", "qz"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing rot_2"))?;
-            let r3_c = col(&["rot_3", "qw"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing rot_3"))?;
+            let r0 = col(&["rot_0"]);
+            let r1 = col(&["rot_1"]);
+            let r2 = col(&["rot_2"]);
+            let r3 = col(&["rot_3"]);
+            let qx = col(&["qx"]);
+            let qy = col(&["qy"]);
+            let qz = col(&["qz"]);
+            let qw = col(&["qw"]);
+
+            let (quat_layout, r0_c, r1_c, r2_c, r3_c) = if let (Some(a), Some(b), Some(c), Some(d)) =
+                (r0, r1, r2, r3)
+            {
+                (QuatLayout::Wxyz, a, b, c, d)
+            } else if let (Some(a), Some(b), Some(c), Some(d)) = (qx, qy, qz, qw) {
+                (QuatLayout::Xyzw, a, b, c, d)
+            } else {
+                return Err(PlyError::msg(
+                    "PLY ASCII: missing quaternion fields. Expected either rot_0..rot_3 (wxyz) or qx,qy,qz,qw (xyzw)",
+                ));
+            };
             let op_c = col(&["opacity", "alpha", "opac"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing opacity"))?;
 
             let r_c = col(&["red", "r"]);
@@ -648,10 +691,14 @@ pub fn parse_splat_ply_core_with_opts(
                     sz = sz.exp();
                 }
 
-                let qx = parse(r0_c)?;
-                let qy = parse(r1_c)?;
-                let qz = parse(r2_c)?;
-                let qw = parse(r3_c)?;
+                let a0 = parse(r0_c)?;
+                let a1 = parse(r1_c)?;
+                let a2 = parse(r2_c)?;
+                let a3 = parse(r3_c)?;
+                let (qx, qy, qz, qw) = match quat_layout {
+                    QuatLayout::Wxyz => (a1, a2, a3, a0),
+                    QuatLayout::Xyzw => (a0, a1, a2, a3),
+                };
 
                 let opv = parse(op_c)?;
                 let alpha = if assume_logit_opacity { sigmoid(opv) } else { opv };
