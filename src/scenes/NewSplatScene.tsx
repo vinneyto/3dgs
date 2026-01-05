@@ -2,12 +2,19 @@ import { OrbitControls } from "@react-three/drei";
 import { useControls } from "leva";
 import { useMemo, useRef } from "react";
 import type { InstancedMesh } from "three";
-import { DoubleSide, MeshBasicNodeMaterial } from "three/webgpu";
+import {
+  DoubleSide,
+  MeshBasicNodeMaterial,
+  NormalBlending,
+} from "three/webgpu";
 import { useDepthKeyCompute } from "../hooks/useDepthKeyCompute";
 import { usePlyEllipsoidBuffersFromData } from "../hooks/usePlyEllipsoidBuffers";
 import { useRadixSortDepthIndices } from "../hooks/useRadixSortDepthIndices";
 import type { PlyPacked } from "../hooks/usePlyPacked";
-import { instancedSplat } from "../tsl/gaussian/instancedSplat";
+import {
+  instancedSplat,
+  type InstancedSplatCutoffMode,
+} from "../tsl/gaussian/instancedSplat";
 
 export function NewSplatScene({
   data,
@@ -26,6 +33,9 @@ export function NewSplatScene({
     splatScale,
     maxScreenSpaceSplatSize,
     inverseFocalAdjustment,
+    cutoffMode,
+    opacityMultiplier,
+    encodeLinear,
   } = useControls(controlsGroup, {
     computeDepthKeys: { value: true },
     sortByDepth: { value: true },
@@ -35,6 +45,12 @@ export function NewSplatScene({
     splatScale: { value: 1.0, min: 0.1, max: 4.0, step: 0.01 },
     maxScreenSpaceSplatSize: { value: 2048, min: 64, max: 4096, step: 1 },
     inverseFocalAdjustment: { value: 1.0, min: 0.25, max: 4.0, step: 0.01 },
+    cutoffMode: {
+      value: "opacity",
+      options: { Fixed8: "fixed", "Opacity-derived": "opacity" },
+    },
+    opacityMultiplier: { value: 1.0, min: 0.0, max: 2.0, step: 0.01 },
+    encodeLinear: { value: true },
   });
 
   // Buffers (same as SplatScene)
@@ -69,6 +85,9 @@ export function NewSplatScene({
         splatScale,
         maxScreenSpaceSplatSize,
         inverseFocalAdjustment,
+        cutoffMode: cutoffMode as InstancedSplatCutoffMode,
+        opacityMultiplier,
+        encodeLinear,
       }),
     [
       centersBuf,
@@ -79,6 +98,9 @@ export function NewSplatScene({
       splatScale,
       maxScreenSpaceSplatSize,
       inverseFocalAdjustment,
+      cutoffMode,
+      opacityMultiplier,
+      encodeLinear,
     ]
   );
 
@@ -88,10 +110,11 @@ export function NewSplatScene({
     const m = new MeshBasicNodeMaterial({ side: DoubleSide });
     m.transparent = true;
     m.depthTest = enableDepth;
-    m.depthWrite = enableDepth;
+    m.depthWrite = false;
+    m.blending = NormalBlending;
     m.vertexNode = shader.positionNode;
     m.colorNode = shader.colorNode;
-    m.opacityNode = shader.opacityNode as never;
+    m.opacityNode = shader.opacityNode;
     return m;
   }, [shader, useDepth, sortedIndicesBuf]);
 

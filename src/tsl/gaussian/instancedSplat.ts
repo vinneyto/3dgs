@@ -6,10 +6,14 @@ import {
   div,
   float,
   instanceIndex,
+  log,
   mat3,
+  max,
+  pow,
   positionLocal,
   screenSize,
   shiftRight,
+  sqrt,
   uint,
   vec2,
   vec3,
@@ -52,6 +56,10 @@ export type InstancedSplatNodes = {
   };
 };
 
+export type InstancedSplatCutoffMode =
+  | "fixed" // GS3D-style: vPosition scaled by sqrt8, cutoffA fixed (default 8)
+  | "opacity"; // PLY-style: cutoffA derived from opacity, vPosition scaled by sqrt(cutoffA)
+
 /**
  * Instanced Gaussian splats driven by storage buffers.
  *
@@ -74,6 +82,9 @@ export function instancedSplat({
   maxScreenSpaceSplatSize = DEFAULT_MAX_SCREEN_SPACE_SPLAT_SIZE,
   inverseFocalAdjustment = 1.0,
   cutoffA = DEFAULT_GAUSSIAN_CUTOFF_A,
+  cutoffMode = "opacity",
+  opacityMultiplier = 1.0,
+  encodeLinear = true,
 }: {
   centers: StorageBufferNode;
   cov: StorageBufferNode;
@@ -84,6 +95,20 @@ export function instancedSplat({
   maxScreenSpaceSplatSize?: number;
   inverseFocalAdjustment?: number;
   cutoffA?: number;
+  /**
+   * How to compute gaussian cutoff in fragment space.
+   *
+   * - "fixed": GS3D-style (A > 8, vPosition scaled by sqrt8)
+   * - "opacity": PLY-style (cutoff derived from opacity, vPosition scaled by sqrt(cutoffA))
+   */
+  cutoffMode?: InstancedSplatCutoffMode;
+  /** Only used when cutoffMode === "opacity". */
+  opacityMultiplier?: number;
+  /**
+   * Spark-style `encodeLinear`:
+   * if true, treat packed RGB as sRGB and convert to linear via `pow(rgb, 2.2)`.
+   */
+  encodeLinear?: boolean;
 }): InstancedSplatNodes {
   // Compute focal length in PIXELS directly in shader (GaussianSplats3D-style):
   // fxPx = P00 * (W/2), fyPx = P11 * (H/2) where screenSize is drawing-buffer size (physical px).
@@ -111,13 +136,36 @@ export function instancedSplat({
   );
 
   const rgbaPacked = rgba.element(splatIndex);
-  const { colorNode: instanceColor, opacityNode: instanceOpacity } =
+  const { colorNode: instanceColor0, opacityNode: instanceOpacity } =
     unpackRGBA8UintToColorOpacity(rgbaPacked);
+  const instanceColor = encodeLinear
+    ? pow(vec3(instanceColor0), vec3(2.2))
+    : vec3(instanceColor0);
 
   // Varyings (created here, used by fragment stage)
   const corner = vec2(positionLocal.x, positionLocal.y);
   const sqrt8 = 2.8284271247461903;
-  const vPosition = corner.mul(sqrt8).toVarying("vPosition");
+
+  let vPosition: Node;
+  let cutoffNode: Node;
+
+  if (cutoffMode === "opacity") {
+    // Match `createInstancedSplatQuadPlyNodes` logic:
+    // cutoffA = max(0, 2 * ln(255 * opacity)), vPosition = corner * sqrt(cutoffA)
+    const opacityForCut = max(
+      float(instanceOpacity).mul(float(opacityMultiplier)),
+      1e-6
+    );
+    const cutoffAFromOpacity = max(0.0, log(opacityForCut.mul(255.0)).mul(2.0));
+    const radius = sqrt(max(cutoffAFromOpacity, 1e-8));
+    vPosition = corner.mul(radius).toVarying("vPosition");
+    cutoffNode = cutoffAFromOpacity.toVarying("vCutoffA");
+  } else {
+    // GS3D-style fixed cutoff.
+    vPosition = corner.mul(sqrt8).toVarying("vPosition");
+    cutoffNode = float(cutoffA);
+  }
+
   const vColor = vec4(instanceColor, instanceOpacity).toVarying("vColor");
 
   const positionNode = createGaussianSplatVertexStage({
@@ -133,7 +181,7 @@ export function instancedSplat({
   const rgbaOut = createGaussianSplatFragmentStage({
     vPosition,
     vColor,
-    cutoffA: float(cutoffA),
+    cutoffA: cutoffNode,
   });
 
   const colorNode = vec3(rgbaOut.x, rgbaOut.y, rgbaOut.z);
