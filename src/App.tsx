@@ -8,6 +8,7 @@ import { SplatComparePage } from "./pages/SplatComparePage.tsx";
 import { SplatQuadPage } from "./pages/SplatQuadPage.tsx";
 import { PlyHeaderPage } from "./pages/PlyHeaderPage.tsx";
 import { PlyEllipsoidsPage } from "./pages/PlyEllipsoidsPage.tsx";
+import { PlyGaussiansPage } from "./pages/PlyGaussiansPage.tsx";
 import { RefSplatsPage } from "./pages/RefSplatsPage.tsx";
 import { RustWasmPlyParsePage } from "./pages/RustWasmPlyParsePage.tsx";
 import { RustBitOpsPage } from "./pages/RustBitOpsPage.tsx";
@@ -68,6 +69,12 @@ export default function App() {
           </NavLink>
           <NavLink
             className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
+            to="/ply-gaussians"
+          >
+            PLY gaussians (WIP)
+          </NavLink>
+          <NavLink
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
             to="/ref-splats"
           >
             Ref splats (PLY)
@@ -101,6 +108,7 @@ export default function App() {
           />
           <Route path="/ply-header" element={<PlyHeaderPage />} />
           <Route path="/ply-ellipsoids" element={<PlyEllipsoidsPage />} />
+          <Route path="/ply-gaussians" element={<PlyGaussiansPage />} />
           <Route path="/ref-splats" element={<RefSplatsPage />} />
           <Route path="/rust-wasm" element={<RustWasmPlyParsePage />} />
           <Route path="/rust-bitops" element={<RustBitOpsPage />} />

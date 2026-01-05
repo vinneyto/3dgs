@@ -16,7 +16,7 @@ declare module "@react-three/fiber" {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 extend(THREE as any);
 
-type WebGPUCanvasProps = Omit<CanvasProps, "gl"> & {
+type WebGPUCanvasProps = CanvasProps & {
   clearColor?: number;
   /** Force WebGL backend (WebGPURenderer fallback) for testing/compat. */
   forceWebGL?: boolean;
@@ -31,9 +31,11 @@ export function WebGPUCanvas({
     <Canvas
       {...props}
       gl={async (glProps) => {
+        console.log("props", props);
         const renderer = new THREE.WebGPURenderer({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(glProps as any),
+          ...props.gl,
           forceWebGL,
         });
         await renderer.init();
