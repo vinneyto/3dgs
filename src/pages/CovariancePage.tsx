@@ -53,6 +53,9 @@ export function CovariancePage() {
           shader deforms a unit sphere using a Cholesky factorization (matrix
           square-root).
         </p>
+        <div className="muted">
+          File: <code>src/pages/CovariancePage.tsx</code>
+        </div>
       </div>
 
       <WebGPUCanvasFrame camera={{ position: [3, 2.2, 3], fov: 50 }}>
@@ -66,7 +69,7 @@ export function CovariancePage() {
         <gridHelper args={[10, 10]} />
 
         <mesh>
-          <sphereGeometry args={[1, 18, 14]} />
+          <sphereGeometry args={[1, 64, 64]} />
           <primitive object={material} attach="material" />
         </mesh>
       </WebGPUCanvasFrame>

@@ -88,6 +88,9 @@ export function BillboardCircleStoragePage() {
           Same shader nodes as the attribute-based demo, but data comes from a
           storage buffer (`instancedArray`) indexed by `instanceIndex`.
         </p>
+        <div className="muted">
+          File: <code>src/pages/BillboardCircleStoragePage.tsx</code>
+        </div>
       </div>
 
       <WebGPUCanvasFrame camera={{ position: [4, 3, 4], fov: 50 }}>

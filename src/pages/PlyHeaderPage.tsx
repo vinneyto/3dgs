@@ -74,7 +74,10 @@ export function PlyHeaderPage() {
     <div style={{ padding: 16 }}>
       <h2>PLY header demo</h2>
       <div>
-        File: <code>{PLY_URL}</code>
+        Demo file: <code>src/pages/PlyHeaderPage.tsx</code>
+      </div>
+      <div>
+        PLY URL: <code>{PLY_URL}</code>
       </div>
       <div style={{ marginTop: 8 }}>
         Status: <code>{status}</code>

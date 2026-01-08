@@ -8,9 +8,8 @@ import {
 } from "three/webgpu";
 import { instancedArray } from "three/tsl";
 import { mulberry32, randRange } from "../lib/random";
-import { SplatInstanceStruct } from "../tsl/gaussian/gaussianCommon";
+import { SplatInstanceStruct } from "../tsl/gaussian/splatInstanceStruct";
 import { createInstancedEllipsoidNodes } from "../tsl/gaussian/instancedEllipsoid";
-import { createInstancedSplatQuadNodes } from "../tsl/gaussian/instancedSplatQuad";
 import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 /**
@@ -80,20 +79,12 @@ export function InstancedSplatsPage() {
     count,
     seed,
     cutoff,
-    opacityMultiplier,
-    showQuadBg,
-    quadBgAlpha,
     showMeshes,
-    showQuads,
   } = useControls("Instanced splats (storage buffer)", {
     count: { value: 256, min: 1, max: 2048, step: 1 },
     seed: { value: 1, min: 1, max: 9999, step: 1 },
     cutoff: { value: 8.0, min: 0.25, max: 25, step: 0.01 },
-    opacityMultiplier: { value: 1.0, min: 0, max: 2, step: 0.01 },
-    showQuadBg: { value: false },
-    quadBgAlpha: { value: 0.12, min: 0, max: 0.6, step: 0.01 },
     showMeshes: { value: true },
-    showQuads: { value: true },
     regenerate: button(() => setRegenTick((x) => x + 1)),
   });
 
@@ -106,7 +97,6 @@ export function InstancedSplatsPage() {
     () => createInstancedEllipsoidNodes(splats),
     [splats]
   );
-  const quad = useMemo(() => createInstancedSplatQuadNodes(splats), [splats]);
 
   const ellipsoidMaterial = useMemo(() => {
     const m = new MeshStandardNodeMaterial({
@@ -119,26 +109,9 @@ export function InstancedSplatsPage() {
     return m;
   }, [ellipsoid]);
 
-  const quadMaterial = useMemo(() => {
-    const m = new MeshBasicNodeMaterial({ side: DoubleSide });
-    m.transparent = true;
-    m.depthTest = false;
-    m.depthWrite = false;
-    m.vertexNode = quad.nodes.vertexNode;
-    m.colorNode = quad.nodes.colorNode;
-    m.opacityNode = quad.nodes.opacityNode;
-    return m;
-  }, [quad]);
-
   useEffect(() => {
     ellipsoid.uniforms.uCutoff.value = cutoff;
-    quad.uniforms.uCutoff.value = cutoff;
-    quad.uniforms.uParams.value.set(
-      opacityMultiplier,
-      showQuadBg ? 1.0 : 0.0,
-      quadBgAlpha
-    );
-  }, [ellipsoid, quad, cutoff, opacityMultiplier, showQuadBg, quadBgAlpha]);
+  }, [ellipsoid, cutoff]);
 
   useEffect(() => {
     const attr = splats.value;
@@ -155,6 +128,9 @@ export function InstancedSplatsPage() {
           Per-instance data comes from a WebGPU storage buffer. The same node
           logic is used for all instances; only the data source changes.
         </p>
+        <div className="muted">
+          File: <code>src/pages/InstancedSplatsPage.tsx</code>
+        </div>
       </div>
 
       <WebGPUCanvasFrame camera={{ position: [4, 3, 4], fov: 50 }}>
@@ -172,21 +148,12 @@ export function InstancedSplatsPage() {
             args={[undefined, undefined, count]}
             frustumCulled={false}
           >
-            <sphereGeometry args={[1, 18, 14]} />
+            <sphereGeometry args={[1, 40, 40]} />
             <primitive object={ellipsoidMaterial} attach="material" />
           </instancedMesh>
         ) : null}
 
-        {showQuads ? (
-          <instancedMesh
-            args={[undefined, undefined, count]}
-            frustumCulled={false}
-            renderOrder={10}
-          >
-            <planeGeometry args={[2, 2]} />
-            <primitive object={quadMaterial} attach="material" />
-          </instancedMesh>
-        ) : null}
+        {/* Gaussian quad rendering removed: use the verified helpers-based pipeline instead. */}
       </WebGPUCanvasFrame>
     </div>
   );

@@ -51,9 +51,6 @@ export type InstancedSplatNodes = {
   positionNode: Node; // vec4
   colorNode: Node; // vec3
   opacityNode: Node; // float
-  uniforms: {
-    // kept for future tunables
-  };
 };
 
 export type InstancedSplatCutoffMode =
@@ -67,7 +64,7 @@ export type InstancedSplatCutoffMode =
  * - `createGaussianSplatVertexStage` (vertex position)
  * - `createGaussianSplatFragmentStage` (fragment RGBA w/ discard)
  *
- * Buffers follow the same packing as `instancedSplatQuadPly.ts`:
+ * Buffers follow the same packing as the legacy splat-quad PLY path:
  * - `centers`: vec3[N]
  * - `cov`: vec3[2N]  (covA at 2*i, covB at 2*i+1)
  * - `rgba`: u32[N] packed RGBA8
@@ -187,5 +184,5 @@ export function instancedSplat({
   const colorNode = vec3(rgbaOut.x, rgbaOut.y, rgbaOut.z);
   const opacityNode = float(rgbaOut.w);
 
-  return { positionNode, colorNode, opacityNode, uniforms: {} };
+  return { positionNode, colorNode, opacityNode };
 }

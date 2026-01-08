@@ -11,7 +11,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import { cholesky3DFromCov, sqrtCutoff } from "./gaussianCommon";
+import { cholesky3DFromCov, sqrtCutoff } from "./covarianceMath";
 
 export type InstancedEllipsoidNodes = {
   nodes: {

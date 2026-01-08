@@ -19,7 +19,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import { cholesky3DFromCov, sqrtCutoff } from "./gaussianCommon";
+import { cholesky3DFromCov, sqrtCutoff } from "./covarianceMath";
 
 const ellipsoidColorOpacityVec4Fn = Fn(
   ({ rgbaPacked, alphaDiscard }: { rgbaPacked: Node; alphaDiscard: Node }) => {

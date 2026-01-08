@@ -13,8 +13,11 @@ export function RefSplatsPage() {
         <h1>Ref splats (PLY)</h1>
         <p className="muted">
           Loads <code>/public/ref_splats.ply</code> and renders it via the same
-          instanced ellipsoid / gaussian-quad pipeline.
+          instanced ellipsoid pipeline.
         </p>
+        <div className="muted">
+          File: <code>src/pages/RefSplatsPage.tsx</code>
+        </div>
         <div className="muted">
           Status: <code>{status}</code>
         </div>
@@ -25,7 +28,11 @@ export function RefSplatsPage() {
           camera={{ position: [4, 3, 4], fov: 50, near: 0.1, far: 100 }}
           gl={{ antialias: false }}
         >
-          <SplatScene data={data} controlsGroup="Ref splats" />
+          <SplatScene
+            data={data}
+            controlsGroup="Ref splats"
+            ellipsoidSphereGeometryArgs={[1, 24, 24]}
+          />
         </WebGPUCanvasFrame>
       ) : null}
     </div>

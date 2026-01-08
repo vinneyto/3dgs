@@ -61,6 +61,9 @@ export function RustBitOpsPage() {
   return (
     <div style={{ padding: 16 }}>
       <h2>Rust shift-right playground</h2>
+      <div style={{ opacity: 0.8 }}>
+        Demo file: <code>src/pages/RustBitOpsPage.tsx</code>
+      </div>
       <p>
         The report below is generated in Rust and returned to React as a single string.
         Try decimal or hex inputs (e.g. <code>42</code> or <code>0x2A</code>).

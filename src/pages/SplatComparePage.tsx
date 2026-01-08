@@ -2,12 +2,33 @@ import { OrbitControls } from "@react-three/drei";
 import { useControls } from "leva";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Color,
   DoubleSide,
   MeshBasicNodeMaterial,
   MeshStandardNodeMaterial,
+  Vector3,
 } from "three/webgpu";
 import { createCovarianceEllipsoidNodes } from "../tsl/covarianceEllipsoid";
-import { createSplatQuadNodes } from "../tsl/splatQuad";
+import {
+  cameraProjectionMatrix,
+  float,
+  max,
+  positionLocal,
+  screenSize,
+  sqrt,
+  uniform,
+  vec2,
+  vec3,
+  vec4,
+} from "three/tsl";
+import {
+  DEFAULT_KERNEL_2D_SIZE,
+  DEFAULT_MAX_SCREEN_SPACE_SPLAT_SIZE,
+  DEFAULT_SPLAT_SCALE,
+  createGaussianSplatFragmentStage,
+  createGaussianSplatVertexStage,
+} from "../tsl/gaussian/helpers";
+import { unpackCovariance3D } from "../tsl/gaussian/covarianceMath";
 import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 export function SplatComparePage() {
@@ -50,7 +71,65 @@ export function SplatComparePage() {
   });
 
   const [ellipsoid] = useState(() => createCovarianceEllipsoidNodes());
-  const [splat] = useState(() => createSplatQuadNodes());
+  const [splat] = useState(() => {
+    const uCenter = uniform(new Vector3()).setName("uCenter");
+    const uCovA = uniform(new Vector3(1, 0, 0)).setName("uCovA");
+    const uCovB = uniform(new Vector3(1, 0, 1)).setName("uCovB");
+    const uColor = uniform(new Color("#ff8a3d")).setName("uColor");
+    const uOpacity = uniform(1.0).setName("uOpacity");
+    const uCutoff = uniform(8.0).setName("uCutoff");
+    const uShowQuadBg = uniform(1.0).setName("uShowQuadBg");
+    const uQuadBgAlpha = uniform(0.15).setName("uQuadBgAlpha");
+
+    const focalPx = vec2(
+      float(cameraProjectionMatrix[0].x).mul(screenSize.x).mul(0.5),
+      float(cameraProjectionMatrix[1].y).mul(screenSize.y).mul(0.5)
+    );
+
+    const center = vec3(uCenter.x, uCenter.y, uCenter.z);
+    const Vrk = unpackCovariance3D({ covA: uCovA, covB: uCovB });
+
+    const corner = vec2(positionLocal.x, positionLocal.y);
+    const cutoffA = float(uCutoff);
+    const vPosition = corner.mul(sqrt(max(cutoffA, 1e-8))).toVarying("vPosition");
+    const vColor = vec4(vec3(uColor), float(uOpacity)).toVarying("vColor");
+
+    const vertexNode = createGaussianSplatVertexStage({
+      center,
+      Vrk,
+      focalPx,
+      kernel2DSize: float(DEFAULT_KERNEL_2D_SIZE),
+      splatScale: float(DEFAULT_SPLAT_SCALE),
+      maxScreenSpaceSplatSize: float(DEFAULT_MAX_SCREEN_SPACE_SPLAT_SIZE),
+      inverseFocalAdjustment: 1.0,
+    });
+
+    const rgba = createGaussianSplatFragmentStage({
+      vPosition,
+      vColor,
+      cutoffA,
+    });
+
+    const bgColor = vec3(0.12, 0.12, 0.12);
+    const baseAlpha = float(uQuadBgAlpha).mul(float(uShowQuadBg));
+    const outAlpha = max(baseAlpha, float(rgba.w));
+    const mask = float(uShowQuadBg).select(1.0, float(rgba.w).div(max(float(uOpacity), 1e-6)));
+    const outColor = bgColor.mix(vec3(uColor), mask.clamp());
+
+    return {
+      nodes: { vertexNode, colorNode: outColor, opacityNode: outAlpha },
+      uniforms: {
+        uCenter,
+        uCovA,
+        uCovB,
+        uColor,
+        uOpacity,
+        uCutoff,
+        uShowQuadBg,
+        uQuadBgAlpha,
+      },
+    };
+  });
 
   const ellipsoidMaterial = useMemo(() => {
     const m = new MeshStandardNodeMaterial({
@@ -87,14 +166,11 @@ export function SplatComparePage() {
     splat.uniforms.uCenter.value.set(centerX, centerY, centerZ);
     splat.uniforms.uCovA.value.set(m11, m12, m13);
     splat.uniforms.uCovB.value.set(m22, m23, m33);
-    splat.uniforms.uCutoff.value = cutoff;
-
     splat.uniforms.uColor.value.set(color);
-    splat.uniforms.uParams.value.set(
-      opacity,
-      showQuadBg ? 1.0 : 0.0,
-      quadBgAlpha
-    );
+    splat.uniforms.uOpacity.value = opacity;
+    splat.uniforms.uCutoff.value = cutoff;
+    splat.uniforms.uShowQuadBg.value = showQuadBg ? 1.0 : 0.0;
+    splat.uniforms.uQuadBgAlpha.value = quadBgAlpha;
   }, [
     ellipsoid,
     splat,
@@ -123,6 +199,9 @@ export function SplatComparePage() {
           surface) and a projected gaussian sprite (2D). Sprite renders on top
           (no depth test).
         </p>
+        <div className="muted">
+          File: <code>src/pages/SplatComparePage.tsx</code>
+        </div>
       </div>
 
       <WebGPUCanvasFrame camera={{ position: [3, 2.2, 3], fov: 50 }}>
@@ -136,7 +215,7 @@ export function SplatComparePage() {
         <gridHelper args={[10, 10]} />
 
         <mesh>
-          <sphereGeometry args={[1, 18, 14]} />
+          <sphereGeometry args={[1, 64, 64]} />
           <primitive object={ellipsoidMaterial} attach="material" />
         </mesh>
 

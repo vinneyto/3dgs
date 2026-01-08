@@ -10,7 +10,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import { cholesky3DFromCov, sqrtCutoff } from "./gaussian/gaussianCommon";
+import { cholesky3DFromCov, sqrtCutoff } from "./gaussian/covarianceMath";
 
 export type CovarianceEllipsoidNodes = {
   nodes: {

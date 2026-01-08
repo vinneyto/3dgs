@@ -16,6 +16,9 @@ export function PlyEllipsoidsPage() {
           center, covariance, rgba.
         </p>
         <div className="muted">
+          File: <code>src/pages/PlyEllipsoidsPage.tsx</code>
+        </div>
+        <div className="muted">
           Status: <code>{status}</code>
         </div>
       </div>

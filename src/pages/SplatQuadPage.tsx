@@ -1,8 +1,28 @@
 import { OrbitControls } from "@react-three/drei";
 import { useControls } from "leva";
 import { useEffect, useMemo, useState } from "react";
-import { DoubleSide, MeshBasicNodeMaterial } from "three/webgpu";
-import { createSplatQuadNodes } from "../tsl/splatQuad";
+import { Color, DoubleSide, MeshBasicNodeMaterial, Vector3 } from "three/webgpu";
+import {
+  cameraProjectionMatrix,
+  exp,
+  float,
+  max,
+  positionLocal,
+  screenSize,
+  sqrt,
+  uniform,
+  vec2,
+  vec3,
+  vec4,
+} from "three/tsl";
+import {
+  DEFAULT_KERNEL_2D_SIZE,
+  DEFAULT_MAX_SCREEN_SPACE_SPLAT_SIZE,
+  DEFAULT_SPLAT_SCALE,
+  createGaussianSplatFragmentStage,
+  createGaussianSplatVertexStage,
+} from "../tsl/gaussian/helpers";
+import { unpackCovariance3D } from "../tsl/gaussian/covarianceMath";
 import { WebGPUCanvasFrame } from "../webgpu/WebGPUCanvasFrame";
 
 export function SplatQuadPage() {
@@ -41,7 +61,68 @@ export function SplatQuadPage() {
     quadBgAlpha: { value: 0.15, min: 0, max: 0.6, step: 0.01 },
   });
 
-  const [demo] = useState(() => createSplatQuadNodes());
+  const [demo] = useState(() => {
+    const uCenter = uniform(new Vector3()).setName("uCenter");
+    const uCovA = uniform(new Vector3(1, 0, 0)).setName("uCovA");
+    const uCovB = uniform(new Vector3(1, 0, 1)).setName("uCovB");
+    const uColor = uniform(new Color("#ff8a3d")).setName("uColor");
+    const uOpacity = uniform(1.0).setName("uOpacity");
+    const uCutoff = uniform(8.0).setName("uCutoff");
+    const uShowQuadBg = uniform(1.0).setName("uShowQuadBg");
+    const uQuadBgAlpha = uniform(0.15).setName("uQuadBgAlpha");
+
+    // focal length in pixels
+    const focalPx = vec2(
+      float(cameraProjectionMatrix[0].x).mul(screenSize.x).mul(0.5),
+      float(cameraProjectionMatrix[1].y).mul(screenSize.y).mul(0.5)
+    );
+
+    const center = vec3(uCenter.x, uCenter.y, uCenter.z);
+    const Vrk = unpackCovariance3D({ covA: uCovA, covB: uCovB });
+
+    // vPosition is in "gaussian space": corner * sqrt(cutoffA)
+    const corner = vec2(positionLocal.x, positionLocal.y);
+    const cutoffA = float(uCutoff);
+    const vPosition = corner.mul(sqrt(max(cutoffA, 1e-8))).toVarying("vPosition");
+    const vColor = vec4(vec3(uColor), float(uOpacity)).toVarying("vColor");
+
+    const vertexNode = createGaussianSplatVertexStage({
+      center,
+      Vrk,
+      focalPx,
+      kernel2DSize: float(DEFAULT_KERNEL_2D_SIZE),
+      splatScale: float(DEFAULT_SPLAT_SCALE),
+      maxScreenSpaceSplatSize: float(DEFAULT_MAX_SCREEN_SPACE_SPLAT_SIZE),
+      inverseFocalAdjustment: 1.0,
+    });
+
+    const rgba = createGaussianSplatFragmentStage({
+      vPosition,
+      vColor,
+      cutoffA,
+    });
+
+    // Optional debug background to see quad bounds (keeps existing UI semantics).
+    const bgColor = vec3(0.12, 0.12, 0.12);
+    const baseAlpha = float(uQuadBgAlpha).mul(float(uShowQuadBg));
+    const outAlpha = max(baseAlpha, float(rgba.w));
+    const mask = float(uShowQuadBg).select(1.0, float(rgba.w).div(max(float(uOpacity), 1e-6)));
+    const outColor = bgColor.mix(vec3(uColor), mask.clamp());
+
+    return {
+      nodes: { vertexNode, colorNode: outColor, opacityNode: outAlpha },
+      uniforms: {
+        uCenter,
+        uCovA,
+        uCovB,
+        uColor,
+        uOpacity,
+        uCutoff,
+        uShowQuadBg,
+        uQuadBgAlpha,
+      },
+    };
+  });
   const material = useMemo(() => {
     const m = new MeshBasicNodeMaterial({ side: DoubleSide });
     m.transparent = true;
@@ -57,12 +138,10 @@ export function SplatQuadPage() {
     demo.uniforms.uCovA.value.set(m11, m12, m13);
     demo.uniforms.uCovB.value.set(m22, m23, m33);
     demo.uniforms.uColor.value.set(color);
+    demo.uniforms.uOpacity.value = opacity;
     demo.uniforms.uCutoff.value = cutoff;
-    demo.uniforms.uParams.value.set(
-      opacity,
-      showQuadBg ? 1.0 : 0.0,
-      quadBgAlpha
-    );
+    demo.uniforms.uShowQuadBg.value = showQuadBg ? 1.0 : 0.0;
+    demo.uniforms.uQuadBgAlpha.value = quadBgAlpha;
   }, [
     demo,
     centerX,
@@ -89,6 +168,9 @@ export function SplatQuadPage() {
           Solid-colored quad, but vertex shader already does: cov3D → cov2D →
           eigen basis → quad offset around projected center.
         </p>
+        <div className="muted">
+          File: <code>src/pages/SplatQuadPage.tsx</code>
+        </div>
       </div>
 
       <WebGPUCanvasFrame camera={{ position: [2.5, 2.0, 2.5], fov: 50 }}>

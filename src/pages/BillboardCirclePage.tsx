@@ -122,6 +122,9 @@ export function BillboardCirclePage() {
           Vertex: world radius → perspective pixel size (clamped) → expand plane
           in NDC. Fragment: UV circle with discard.
         </p>
+        <div className="muted">
+          File: <code>src/pages/BillboardCirclePage.tsx</code>
+        </div>
       </div>
 
       <WebGPUCanvasFrame forceWebGL camera={{ position: [4, 3, 4], fov: 50 }}>

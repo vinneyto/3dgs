@@ -91,6 +91,9 @@ export function RustWasmPlyParsePage() {
   return (
     <div style={{ padding: 16 }}>
       <h2>PLY parsing via Rust WASM</h2>
+      <div style={{ opacity: 0.8 }}>
+        Demo file: <code>src/pages/RustWasmPlyParsePage.tsx</code>
+      </div>
       <p>
         This page parses a 3D Gaussian Splats PLY via Rust→WASM and also runs
         the existing TS parser for comparison (the TS parser is kept as-is).

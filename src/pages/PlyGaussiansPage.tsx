@@ -17,6 +17,9 @@ export function PlyGaussiansPage() {
           next.
         </p>
         <div className="muted">
+          File: <code>src/pages/PlyGaussiansPage.tsx</code>
+        </div>
+        <div className="muted">
           Status: <code>{status}</code>
         </div>
       </div>
