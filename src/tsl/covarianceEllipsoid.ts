@@ -1,6 +1,8 @@
 import { Vector3, type Node } from "three/webgpu";
 import {
   cameraProjectionMatrix,
+  cameraViewMatrix,
+  modelNormalMatrix,
   modelViewMatrix,
   normalLocal,
   positionLocal,
@@ -56,8 +58,12 @@ export function createCovarianceEllipsoidNodes(): CovarianceEllipsoidNodes {
     .mul(modelViewMatrix)
     .mul(vec4(localPos, 1.0));
 
-  const normalNode = invLT
+  // `MeshStandardNodeMaterial.normalNode` is expected to be in view-space.
+  const normalLocalEllipsoid = invLT
     .mul(vec3(normalLocal.x, normalLocal.y, normalLocal.z))
+    .normalize();
+  const normalNode = cameraViewMatrix
+    .transformDirection(modelNormalMatrix.mul(normalLocalEllipsoid))
     .normalize();
 
   return {

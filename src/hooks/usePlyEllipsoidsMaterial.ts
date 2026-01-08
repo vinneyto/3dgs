@@ -14,6 +14,7 @@ export type PlyEllipsoidsMaterialParams = {
   debugDepth: boolean;
   depthKeysBuf: StorageBufferNode | null;
   cutoff: number;
+  alphaDiscard: number;
   roughness: number;
   metalness: number;
 };
@@ -24,6 +25,7 @@ export function usePlyEllipsoidsMaterial({
   debugDepth,
   depthKeysBuf,
   cutoff,
+  alphaDiscard,
   roughness,
   metalness,
 }: PlyEllipsoidsMaterialParams):
@@ -64,11 +66,12 @@ export function usePlyEllipsoidsMaterial({
 
   useEffect(() => {
     shader.uniforms.uCutoff.value = cutoff;
+    shader.uniforms.uAlphaDiscard.value = alphaDiscard;
     if (material instanceof MeshStandardNodeMaterial) {
       material.roughness = roughness;
       material.metalness = metalness;
     }
-  }, [shader, material, cutoff, roughness, metalness]);
+  }, [shader, material, cutoff, alphaDiscard, roughness, metalness]);
 
   return material;
 }

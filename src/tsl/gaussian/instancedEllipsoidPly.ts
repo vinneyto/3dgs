@@ -3,10 +3,13 @@ import {
   add,
   bitAnd,
   cameraProjectionMatrix,
+  cameraViewMatrix,
   div,
+  Fn,
   float,
   instanceIndex,
   mul,
+  modelNormalMatrix,
   modelViewMatrix,
   normalLocal,
   positionLocal,
@@ -18,25 +21,28 @@ import {
 } from "three/tsl";
 import { cholesky3DFromCov, sqrtCutoff } from "./gaussianCommon";
 
-function unpackRGBA8UintToColorOpacity(rgbaPacked: Node): {
-  colorNode: Node;
-  opacityNode: Node;
-} {
-  const inv255 = 1.0 / 255.0;
-  const rU = bitAnd(rgbaPacked, uint(0x000000ff));
-  const gU = bitAnd(shiftRight(rgbaPacked, uint(8)), uint(0x000000ff));
-  const bU = bitAnd(shiftRight(rgbaPacked, uint(16)), uint(0x000000ff));
-  const aU = bitAnd(shiftRight(rgbaPacked, uint(24)), uint(0x000000ff));
+const ellipsoidColorOpacityVec4Fn = Fn(
+  ({ rgbaPacked, alphaDiscard }: { rgbaPacked: Node; alphaDiscard: Node }) => {
+    const inv255 = 1.0 / 255.0;
+    const rU = bitAnd(rgbaPacked, uint(0x000000ff));
+    const gU = bitAnd(shiftRight(rgbaPacked, uint(8)), uint(0x000000ff));
+    const bU = bitAnd(shiftRight(rgbaPacked, uint(16)), uint(0x000000ff));
+    const aU = bitAnd(shiftRight(rgbaPacked, uint(24)), uint(0x000000ff));
 
-  const colorNode = vec3(
-    mul(float(rU), inv255),
-    mul(float(gU), inv255),
-    mul(float(bU), inv255)
-  );
-  const opacityNode = div(float(aU), 255.0);
+    const opacity = div(float(aU), 255.0);
 
-  return { colorNode, opacityNode };
-}
+    // Discard very low-opacity fragments to avoid rendering huge nearly-transparent ellipsoids.
+    float(opacity).lessThan(float(alphaDiscard)).discard();
+
+    const color = vec3(
+      mul(float(rU), inv255),
+      mul(float(gU), inv255),
+      mul(float(bU), inv255)
+    );
+
+    return vec4(color, opacity);
+  }
+);
 
 export type InstancedEllipsoidPlyNodes = {
   nodes: {
@@ -48,6 +54,8 @@ export type InstancedEllipsoidPlyNodes = {
   uniforms: {
     /** Iso-surface cutoff (shared for all instances). */
     uCutoff: ReturnType<typeof uniform<number>>;
+    /** Discard fragments if opacity is below this threshold. */
+    uAlphaDiscard: ReturnType<typeof uniform<number>>;
   };
   buffers: {
     centers: StorageBufferNode;
@@ -64,6 +72,8 @@ export function createInstancedEllipsoidPlyNodes(
   sortedIndices?: StorageBufferNode | null
 ): InstancedEllipsoidPlyNodes {
   const uCutoff = uniform(1.0).setName("uCutoff");
+  // 2/255: drop nearly-transparent splats that tend to show up as large dark ellipsoids.
+  const uAlphaDiscard = uniform(2.0 / 255.0).setName("uAlphaDiscard");
   const { radius } = sqrtCutoff(uCutoff);
 
   const splatIndex = sortedIndices
@@ -93,15 +103,26 @@ export function createInstancedEllipsoidPlyNodes(
     .mul(modelViewMatrix)
     .mul(vec4(localPos, 1.0));
 
-  const normalNode = invLT
+  // `MeshStandardNodeMaterial.normalNode` is expected to be in view-space.
+  // We first compute the ellipsoid surface normal in local space, then transform it
+  // through the object's normal matrix and finally into view space.
+  const normalLocalEllipsoid = invLT
     .mul(vec3(normalLocal.x, normalLocal.y, normalLocal.z))
     .normalize();
+  const normalNode = cameraViewMatrix
+    .transformDirection(modelNormalMatrix.mul(normalLocalEllipsoid))
+    .normalize();
 
-  const { colorNode, opacityNode } = unpackRGBA8UintToColorOpacity(rgbaPacked);
+  const colorOpacity4 = ellipsoidColorOpacityVec4Fn({
+    rgbaPacked,
+    alphaDiscard: uAlphaDiscard,
+  });
+  const colorNode = colorOpacity4.xyz;
+  const opacityNode = colorOpacity4.w;
 
   return {
     nodes: { vertexNode, normalNode, colorNode, opacityNode },
-    uniforms: { uCutoff },
+    uniforms: { uCutoff, uAlphaDiscard },
     buffers: { centers, cov, rgba, sortedIndices: sortedIndices ?? null },
   };
 }

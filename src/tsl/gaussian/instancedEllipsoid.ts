@@ -3,6 +3,8 @@ import {
   cameraProjectionMatrix,
   cameraViewMatrix,
   instanceIndex,
+  modelNormalMatrix,
+  modelViewMatrix,
   normalLocal,
   positionLocal,
   uniform,
@@ -48,14 +50,18 @@ export function createInstancedEllipsoidNodes(
   // Deform local sphere position into ellipsoid iso-surface:
   // p' = center + L * (positionLocal * sqrt(cutoff))
   const p = vec3(positionLocal.x, positionLocal.y, positionLocal.z).mul(radius);
-  const worldPos = L.mul(p).add(center);
+  const localPos = L.mul(p).add(center);
 
   const vertexNode = cameraProjectionMatrix
-    .mul(cameraViewMatrix)
-    .mul(vec4(worldPos, 1.0));
+    .mul(modelViewMatrix)
+    .mul(vec4(localPos, 1.0));
 
-  const normalNode = invLT
+  // `MeshStandardNodeMaterial.normalNode` is expected to be in view-space.
+  const normalLocalEllipsoid = invLT
     .mul(vec3(normalLocal.x, normalLocal.y, normalLocal.z))
+    .normalize();
+  const normalNode = cameraViewMatrix
+    .transformDirection(modelNormalMatrix.mul(normalLocalEllipsoid))
     .normalize();
 
   return {

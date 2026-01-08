@@ -57,12 +57,16 @@ export function CovariancePage() {
 
       <WebGPUCanvasFrame camera={{ position: [3, 2.2, 3], fov: 50 }}>
         <OrbitControls makeDefault enableDamping />
-        <ambientLight intensity={0.25} />
+        <ambientLight intensity={0.35} />
+        <hemisphereLight
+          args={["#dfe8ff", "#1a1a1a", 0.45]}
+          position={[0, 1, 0]}
+        />
         <directionalLight position={[4, 6, 3]} intensity={1.2} />
         <gridHelper args={[10, 10]} />
 
         <mesh>
-          <sphereGeometry args={[1, 64, 64]} />
+          <sphereGeometry args={[1, 18, 14]} />
           <primitive object={material} attach="material" />
         </mesh>
       </WebGPUCanvasFrame>

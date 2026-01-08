@@ -159,7 +159,11 @@ export function InstancedSplatsPage() {
 
       <WebGPUCanvasFrame camera={{ position: [4, 3, 4], fov: 50 }}>
         <OrbitControls makeDefault enableDamping />
-        <ambientLight intensity={0.25} />
+        <ambientLight intensity={0.35} />
+        <hemisphereLight
+          args={["#dfe8ff", "#1a1a1a", 0.45]}
+          position={[0, 1, 0]}
+        />
         <directionalLight position={[4, 6, 3]} intensity={1.2} />
         <gridHelper args={[10, 10]} />
 
@@ -168,7 +172,7 @@ export function InstancedSplatsPage() {
             args={[undefined, undefined, count]}
             frustumCulled={false}
           >
-            <sphereGeometry args={[1, 40, 40]} />
+            <sphereGeometry args={[1, 18, 14]} />
             <primitive object={ellipsoidMaterial} attach="material" />
           </instancedMesh>
         ) : null}

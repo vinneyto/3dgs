@@ -21,6 +21,7 @@ export function SplatScene({
   const {
     renderAs,
     cutoff,
+    alphaDiscard,
     metalness,
     roughness,
     useDepth,
@@ -43,6 +44,7 @@ export function SplatScene({
       },
     },
     cutoff: { value: 1.0, min: 0.05, max: 8.0, step: 0.01 },
+    alphaDiscard: { value: 2.0 / 255.0, min: 0.0, max: 0.1, step: 0.0005 },
     roughness: { value: 0.8, min: 0, max: 1, step: 0.01 },
     metalness: { value: 0.0, min: 0, max: 1, step: 0.01 },
     useDepth: { value: true },
@@ -90,6 +92,7 @@ export function SplatScene({
     debugDepth,
     depthKeysBuf,
     cutoff,
+    alphaDiscard,
     roughness,
     metalness,
   });
@@ -119,7 +122,11 @@ export function SplatScene({
   return (
     <>
       <OrbitControls makeDefault enableDamping />
-      <ambientLight intensity={0.25} />
+      <ambientLight intensity={0.35} />
+      <hemisphereLight
+        args={["#dfe8ff", "#1a1a1a", 0.45]}
+        position={[0, 1, 0]}
+      />
       <directionalLight position={[4, 6, 3]} intensity={1.2} />
       <gridHelper args={[10, 10]} />
 
@@ -133,7 +140,7 @@ export function SplatScene({
         {isGaussian ? (
           <planeGeometry args={[2, 2]} />
         ) : (
-          <sphereGeometry args={[1, 24, 24]} />
+          <sphereGeometry args={[1, 18, 14]} />
         )}
         <primitive
           object={isGaussian ? splatMaterial : ellipsoidMaterial}
