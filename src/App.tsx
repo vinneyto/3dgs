@@ -12,6 +12,7 @@ import { PlyGaussiansPage } from "./pages/PlyGaussiansPage.tsx";
 import { RefSplatsPage } from "./pages/RefSplatsPage.tsx";
 import { RustWasmPlyParsePage } from "./pages/RustWasmPlyParsePage.tsx";
 import { RustBitOpsPage } from "./pages/RustBitOpsPage.tsx";
+import { ShSphereDemoPage } from "./pages/ShSphereDemoPage.tsx";
 
 export default function App() {
   return (
@@ -91,6 +92,12 @@ export default function App() {
           >
             Rust bitwise ops
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `navLink${isActive ? " active" : ""}`}
+            to="/sh-sphere"
+          >
+            SH sphere (widget)
+          </NavLink>
         </nav>
       </aside>
 
@@ -112,6 +119,7 @@ export default function App() {
           <Route path="/ref-splats" element={<RefSplatsPage />} />
           <Route path="/rust-wasm" element={<RustWasmPlyParsePage />} />
           <Route path="/rust-bitops" element={<RustBitOpsPage />} />
+          <Route path="/sh-sphere" element={<ShSphereDemoPage />} />
           <Route path="/gaussian-splat" element={<Navigate to="/covariance" replace />} />
           <Route path="*" element={<Navigate to="/covariance" replace />} />
         </Routes>

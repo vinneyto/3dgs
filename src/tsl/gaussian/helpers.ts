@@ -257,3 +257,46 @@ export const createGaussianSplatFragmentStage = Fn(
     return vec4(vec3(vc.x, vc.y, vc.z), opacity);
   }
 );
+
+/**
+ * Real spherical harmonics eval for L=1 (DC + 3 first-order terms), returning RGB.
+ *
+ * Order:
+ * - Y00
+ * - Y1,-1 (y)
+ * - Y1, 0 (z)
+ * - Y1, 1 (x)
+ *
+ * This mirrors common 3DGS real-SH conventions.
+ */
+export const evalSH_L1 = Fn(
+  ({
+    dir,
+    c0,
+    c1,
+    c2,
+    c3,
+  }: {
+    dir: Node; // vec3 (normalized)
+    c0: Node; // vec3
+    c1: Node; // vec3
+    c2: Node; // vec3
+    c3: Node; // vec3
+  }) => {
+    const d = vec3(dir);
+    const x = float(d.x);
+    const y = float(d.y);
+    const z = float(d.z);
+
+    // constants
+    const k0 = 0.28209479177387814;
+    const k1 = 0.4886025119029199;
+
+    // rgb = c0*Y00 + c1*Y1,-1 + c2*Y1,0 + c3*Y1,1
+    const rgb0 = mul(vec3(c0), k0);
+    const rgb1 = mul(vec3(c1), mul(k1, y));
+    const rgb2 = mul(vec3(c2), mul(k1, z));
+    const rgb3 = mul(vec3(c3), mul(k1, x));
+    return add(add(rgb0, rgb1), add(rgb2, rgb3));
+  }
+);
