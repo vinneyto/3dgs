@@ -28,6 +28,10 @@ body {
   min-height: 100vh;
 }
 
+.appBoot {
+  min-height: 100dvh;
+}
+
 h1 {
   font-size: 28px;
   line-height: 1.1;
@@ -42,6 +46,16 @@ h1 {
   display: grid;
   grid-template-columns: 280px 1fr;
   min-height: 100dvh;
+}
+
+.appShellDesktop {
+  display: grid;
+}
+
+.appShellMobile {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
 }
 
 .sidebar {
@@ -85,6 +99,41 @@ h1 {
   overflow: hidden;
 }
 
+.mobileHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mobileTitle {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  flex: 0 0 auto;
+}
+
+.mobileSelect {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  padding: 0 10px;
+}
+
+.mobileSelect:focus {
+  outline: 2px solid rgba(100, 108, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.contentMobile {
+  height: calc(100dvh - 57px);
+  padding: 12px;
+}
+
 .muted {
   opacity: 0.7;
 }
@@ -126,4 +175,23 @@ h1 {
 
 .levaDock {
   pointer-events: none;
+}
+
+@media (max-width: 820px) {
+  .content {
+    overflow: hidden;
+  }
+
+  h1 {
+    font-size: 20px;
+    margin: 0 0 8px;
+  }
+
+  .page {
+    gap: 10px;
+  }
+
+  .canvasWrap {
+    border-radius: 12px;
+  }
 }

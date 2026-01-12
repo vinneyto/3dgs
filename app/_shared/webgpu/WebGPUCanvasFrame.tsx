@@ -1,8 +1,9 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
 import { Leva } from "leva";
+import type { CSSProperties, ReactNode } from "react";
 import type { CanvasProps } from "@react-three/fiber";
+import { useIsMobile } from "@/app/_shared/hooks/useIsMobile";
 import { WebGPUCanvas } from "./WebGPUCanvas";
 
 type WebGPUCanvasFrameProps = Omit<CanvasProps, "className" | "style"> & {
@@ -25,6 +26,8 @@ export function WebGPUCanvasFrame({
   levaTitle,
   ...canvasProps
 }: WebGPUCanvasFrameProps) {
+  const isMobile = useIsMobile(820);
+
   return (
     <div className={className} style={style}>
       <WebGPUCanvas
@@ -37,9 +40,9 @@ export function WebGPUCanvasFrame({
         }}
       />
       {leva ? (
-        <div className="levaDock">
+        <div className="levaDock" suppressHydrationWarning>
           <Leva
-            collapsed={false}
+            collapsed={isMobile}
             titleBar={levaTitle ? { title: levaTitle } : undefined}
           />
         </div>
