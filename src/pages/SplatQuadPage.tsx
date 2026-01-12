@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Color, DoubleSide, MeshBasicNodeMaterial, Vector3 } from "three/webgpu";
 import {
   cameraProjectionMatrix,
-  exp,
   float,
   max,
   positionLocal,

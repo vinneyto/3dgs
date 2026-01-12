@@ -6,7 +6,13 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  globalIgnores([
+    "dist",
+    // Keep local ML experiments / venvs out of ESLint (third-party code, huge trees).
+    "mlcv",
+    "**/.env",
+    "**/.env/**",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

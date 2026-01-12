@@ -3,7 +3,6 @@ import { button, useControls } from "leva";
 import { useEffect, useMemo, useState } from "react";
 import {
   DoubleSide,
-  MeshBasicNodeMaterial,
   MeshStandardNodeMaterial,
 } from "three/webgpu";
 import { instancedArray } from "three/tsl";

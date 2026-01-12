@@ -80,5 +80,8 @@ export function useRadixSortDepthIndices({
     }
   });
 
-  return enabled && sorter ? sorter.sortedIndices : null;
+  // Important: even when `enabled` is false, keep returning the same `sortedIndices` buffer.
+  // This lets render paths "freeze" the last sorted order (and avoids any consumers treating
+  // the buffer as absent / resetting state).
+  return sorter ? sorter.sortedIndices : null;
 }
