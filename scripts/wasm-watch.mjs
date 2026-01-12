@@ -28,7 +28,7 @@ function runBuild() {
     if (code !== 0) {
       // Keep watching even if the build fails.
       console.warn(
-        `[wasm:watch] build failed (exit ${code}). Watching for changes...`
+        `[wasm:watch] build failed (exit ${code}). Watching for changes...`,
       );
     }
   });
@@ -69,7 +69,7 @@ watchers.push(watchDir(wasmSrcDir));
 
 watchers.push(
   fs.watch(wasmCargoToml, () => scheduleBuild()),
-  fs.watch(wasmCargoLock, () => scheduleBuild())
+  fs.watch(wasmCargoLock, () => scheduleBuild()),
 );
 
 process.on("SIGINT", () => {

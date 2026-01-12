@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+# Legacy Vite project (kept for reference during migration)
+tmp/
+# Rust build artifacts
+wasm/target/
+# Generated wasm-bindgen output
+app/_shared/wasm/pkg/
+# macOS
+.DS_Store

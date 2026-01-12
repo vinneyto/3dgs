@@ -51,4 +51,3 @@ Outputs:
 
 - The script forces `HF_HOME=mlcv/.hf-cache` so caches stay inside the repo.
 - Device selection is handled by PyTorch (on macOS you'll typically see `mps`).
-
