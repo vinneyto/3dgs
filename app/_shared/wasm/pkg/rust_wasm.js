@@ -98,6 +98,41 @@ export class SplatPlyBuffers {
         return ret;
     }
     /**
+     * @returns {Float32Array}
+     */
+    get shCoeffsL1() {
+        const ret = wasm.splatplybuffers_shCoeffsL1(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get shCoeffsL2Scale() {
+        const ret = wasm.splatplybuffers_shCoeffsL2Scale(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get shCoeffsL3Scale() {
+        const ret = wasm.splatplybuffers_shCoeffsL3Scale(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {Uint32Array}
+     */
+    get shCoeffsL2Packed() {
+        const ret = wasm.splatplybuffers_shCoeffsL2Packed(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {Uint32Array}
+     */
+    get shCoeffsL3Packed() {
+        const ret = wasm.splatplybuffers_shCoeffsL3Packed(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * @returns {Uint32Array}
      */
     get rgba() {
@@ -146,6 +181,13 @@ export class SplatPlyBuffers {
     get bboxMin() {
         const ret = wasm.splatplybuffers_bboxMin(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get shDegree() {
+        const ret = wasm.splatplybuffers_shDegree(this.__wbg_ptr);
+        return ret >>> 0;
     }
 }
 if (Symbol.dispose) SplatPlyBuffers.prototype[Symbol.dispose] = SplatPlyBuffers.prototype.free;

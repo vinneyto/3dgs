@@ -31,7 +31,11 @@ export default function PhotoPlyGaussiansPage() {
           camera={{ position: [4, 3, 4], fov: 50, near: 0.1, far: 100 }}
           gl={{ antialias: false }}
         >
-          <NewSplatScene data={data} controlsGroup="Photo PLY gaussians" />
+          <NewSplatScene
+            data={data}
+            controlsGroup="Photo PLY gaussians"
+            meshScale={[1, -1, -1]}
+          />
         </WebGPUCanvasFrame>
       ) : null}
     </div>

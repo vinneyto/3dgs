@@ -34,6 +34,36 @@ impl SplatPlyBuffers {
         unsafe { js_sys::Uint32Array::view(&self.inner.rgba) }
     }
 
+    #[wasm_bindgen(getter, js_name = shCoeffsL1)]
+    pub fn sh_coeffs_l1(&self) -> js_sys::Float32Array {
+        unsafe { js_sys::Float32Array::view(&self.inner.sh_coeffs_l1) }
+    }
+
+    #[wasm_bindgen(getter, js_name = shCoeffsL2Packed)]
+    pub fn sh_coeffs_l2_packed(&self) -> js_sys::Uint32Array {
+        unsafe { js_sys::Uint32Array::view(&self.inner.sh_coeffs_l2_packed) }
+    }
+
+    #[wasm_bindgen(getter, js_name = shCoeffsL2Scale)]
+    pub fn sh_coeffs_l2_scale(&self) -> f32 {
+        self.inner.sh_coeffs_l2_scale
+    }
+
+    #[wasm_bindgen(getter, js_name = shCoeffsL3Packed)]
+    pub fn sh_coeffs_l3_packed(&self) -> js_sys::Uint32Array {
+        unsafe { js_sys::Uint32Array::view(&self.inner.sh_coeffs_l3_packed) }
+    }
+
+    #[wasm_bindgen(getter, js_name = shCoeffsL3Scale)]
+    pub fn sh_coeffs_l3_scale(&self) -> f32 {
+        self.inner.sh_coeffs_l3_scale
+    }
+
+    #[wasm_bindgen(getter, js_name = shDegree)]
+    pub fn sh_degree(&self) -> u32 {
+        self.inner.sh_degree
+    }
+
     #[wasm_bindgen(getter, js_name = bboxMin)]
     pub fn bbox_min(&self) -> js_sys::Float32Array {
         unsafe { js_sys::Float32Array::view(&self.inner.bbox_min) }

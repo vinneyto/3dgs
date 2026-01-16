@@ -6,6 +6,12 @@ export type PlyPacked = {
   center: Float32Array; // 3N
   covariance: Float32Array; // 6N (two vec3 per splat)
   rgba: Uint32Array; // N packed RGBA8
+  shCoeffsL1?: Float32Array;
+  shCoeffsL2Packed?: Uint32Array;
+  shCoeffsL2Scale?: number;
+  shCoeffsL3Packed?: Uint32Array;
+  shCoeffsL3Scale?: number;
+  shDegree?: number;
 };
 
 export function usePlyPacked(url: string): {
@@ -36,6 +42,12 @@ export function usePlyPacked(url: string): {
           center: splat.center,
           covariance: splat.covariance,
           rgba: splat.rgba,
+          shCoeffsL1: splat.shCoeffsL1,
+          shCoeffsL2Packed: splat.shCoeffsL2Packed,
+          shCoeffsL2Scale: splat.shCoeffsL2Scale,
+          shCoeffsL3Packed: splat.shCoeffsL3Packed,
+          shCoeffsL3Scale: splat.shCoeffsL3Scale,
+          shDegree: splat.shDegree,
         };
 
         console.log("[PLY buffers]", {
@@ -43,6 +55,10 @@ export function usePlyPacked(url: string): {
           centerLen: packed.center.length,
           covarianceLen: packed.covariance.length,
           rgbaLen: packed.rgba.length,
+          shCoeffsL1Len: packed.shCoeffsL1?.length ?? 0,
+          shCoeffsL2Len: packed.shCoeffsL2Packed?.length ?? 0,
+          shCoeffsL3Len: packed.shCoeffsL3Packed?.length ?? 0,
+          shDegree: packed.shDegree ?? 0,
         });
 
         setData(packed);

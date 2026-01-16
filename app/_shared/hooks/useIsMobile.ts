@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const DEFAULT_BREAKPOINT_PX = 820;
 
 export function useIsMobile(
-  breakpointPx: number = DEFAULT_BREAKPOINT_PX
+  breakpointPx: number = DEFAULT_BREAKPOINT_PX,
 ): boolean {
   const query = `(max-width: ${breakpointPx}px)`;
 

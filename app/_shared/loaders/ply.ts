@@ -3,7 +3,7 @@
 // - Reads PLY header (ascii/binary_little_endian/binary_big_endian)
 // - Extracts: center (x,y,z), covariance (6 via scale+quat), rgba (optional rgb + opacity)
 // - Uses f_dc_0..2 (DC spherical harmonics) as a fallback for RGB when explicit red/green/blue is absent.
-// - Ignores higher-order spherical harmonics (f_rest_*) intentionally.
+// - Parses higher-order spherical harmonics (f_rest_*) when present, interleaved per coefficient.
 //
 // Usage:
 //   import { parseSplatPly } from "./splat_ply_parser";
@@ -65,6 +65,18 @@ export type SplatPlyBuffers = {
   covariance: Float32Array;
   /** N packed RGBA8 as uint32: r | (g<<8) | (b<<16) | (a<<24) */
   rgba: Uint32Array;
+  /** SH L1 coefficients: 9 floats per splat (3 coeffs * RGB). */
+  shCoeffsL1: Float32Array;
+  /** Packed SH L2 coefficients: 10 uints per splat (2 u32 per vec3). */
+  shCoeffsL2Packed: Uint32Array;
+  /** SH L2 scale used to unpack. */
+  shCoeffsL2Scale: number;
+  /** Packed SH L3 coefficients: 14 uints per splat (2 u32 per vec3). */
+  shCoeffsL3Packed: Uint32Array;
+  /** SH L3 scale used to unpack. */
+  shCoeffsL3Scale: number;
+  /** Max SH degree present (0/1/2/3). */
+  shDegree: number;
   format: PlyFormat;
 };
 
@@ -365,6 +377,95 @@ function pickName<T>(map: Map<string, T>, names: string[]): T | null {
   return null;
 }
 
+function parseFRestIndex(name: string): number | null {
+  const lower = name.toLowerCase();
+  if (!lower.startsWith("f_rest_")) return null;
+  const suffix = lower.slice("f_rest_".length);
+  const value = Number(suffix);
+  return Number.isFinite(value) ? value : null;
+}
+
+function collectShRestEntries(el: PlyElement): Array<{
+  index: number;
+  type: PlyScalarType;
+  order: number;
+}> {
+  const entries: Array<{ index: number; type: PlyScalarType; order: number }> =
+    [];
+  for (let i = 0; i < el.properties.length; i++) {
+    const prop = el.properties[i];
+    if (prop.kind !== "scalar") continue;
+    const order = parseFRestIndex(prop.name);
+    if (order == null) continue;
+    entries.push({ index: i, type: prop.type, order });
+  }
+  entries.sort((a, b) => a.order - b.order);
+  return entries;
+}
+
+function writeShRestCoeffs(
+  shRest: Float32Array,
+  shDegree: number,
+  shCoeffsL1: Float32Array,
+  shCoeffsL2: Float32Array,
+  shCoeffsL3: Float32Array,
+  splatIndex: number,
+): void {
+  if (shDegree === 0 || shRest.length === 0) return;
+  const coeffsPerChannel = shRest.length / 3;
+  for (let i = 0; i < coeffsPerChannel; i++) {
+    const r = shRest[i];
+    const g = shRest[coeffsPerChannel + i];
+    const b = shRest[2 * coeffsPerChannel + i];
+    if (i < 3) {
+      const base = splatIndex * 9 + i * 3;
+      shCoeffsL1[base] = r;
+      shCoeffsL1[base + 1] = g;
+      shCoeffsL1[base + 2] = b;
+    } else if (i < 8 && shDegree >= 2) {
+      const base = splatIndex * 15 + (i - 3) * 3;
+      shCoeffsL2[base] = r;
+      shCoeffsL2[base + 1] = g;
+      shCoeffsL2[base + 2] = b;
+    } else if (shDegree >= 3) {
+      const base = splatIndex * 21 + (i - 8) * 3;
+      shCoeffsL3[base] = r;
+      shCoeffsL3[base + 1] = g;
+      shCoeffsL3[base + 2] = b;
+    }
+  }
+}
+
+function packShCoeffsI16(data: Float32Array): {
+  data: Uint32Array;
+  scale: number;
+} {
+  if (data.length === 0) {
+    return { data: new Uint32Array(0), scale: 1 };
+  }
+  let maxAbs = 0;
+  for (let i = 0; i < data.length; i++) {
+    const v = Math.abs(data[i]);
+    if (v > maxAbs) maxAbs = v;
+  }
+  const scale = maxAbs > 0 ? maxAbs / 32767 : 1;
+  const vecCount = data.length / 3;
+  const packed = new Uint32Array(vecCount * 2);
+  let out = 0;
+  for (let i = 0; i < data.length; i += 3) {
+    const r = quantizeToI16(data[i] / scale);
+    const g = quantizeToI16(data[i + 1] / scale);
+    const b = quantizeToI16(data[i + 2] / scale);
+    packed[out++] = (r & 0xffff) | ((g & 0xffff) << 16);
+    packed[out++] = b & 0xffff;
+  }
+  return { data: packed, scale };
+}
+
+function quantizeToI16(v: number): number {
+  return Math.max(-32767, Math.min(32767, Math.round(v))) | 0;
+}
+
 export function parseSplatPly(
   bytes: Uint8Array,
   opts: ParseSplatPlyOptions = {},
@@ -431,6 +532,34 @@ export function parseSplatPly(
   const SH_C0 = 0.28209479177387814; // matches GaussianSplats3D INRIA parsers
 
   const count = el.count;
+  const shRestEntries = collectShRestEntries(el);
+  if (shRestEntries.length % 3 !== 0) {
+    throw new Error("PLY: f_rest_* count must be divisible by 3");
+  }
+  const shDegree =
+    shRestEntries.length === 0
+      ? 0
+      : shRestEntries.length === 9
+        ? 1
+        : shRestEntries.length === 24
+          ? 2
+          : shRestEntries.length === 45
+            ? 3
+            : (() => {
+                throw new Error(
+                  "PLY: invalid f_rest_* count (expected 0, 9, 24, or 45)",
+                );
+              })();
+  const shCoeffsL1 =
+    shDegree >= 1 ? new Float32Array(count * 9) : new Float32Array(0);
+  const shCoeffsL2 =
+    shDegree >= 2 ? new Float32Array(count * 15) : new Float32Array(0);
+  const shCoeffsL3 =
+    shDegree >= 3 ? new Float32Array(count * 21) : new Float32Array(0);
+  const hasRgbHeader = !!(pr && pg && pb);
+  const shRestValues =
+    shRestEntries.length > 0 ? new Float32Array(shRestEntries.length) : null;
+  const emptyShRest = new Float32Array(0);
 
   const center = new Float32Array(count * 3);
   const covariance = new Float32Array(count * 6);
@@ -504,7 +633,7 @@ export function parseSplatPly(
       tg: PlyScalarType | null = null,
       tb: PlyScalarType | null = null;
 
-    if (pr && pg && pb) {
+    if (hasRgbHeader && pr && pg && pb) {
       hasColor = true;
       assertScalarEntry(pr, "red");
       assertScalarEntry(pg, "green");
@@ -588,6 +717,9 @@ export function parseSplatPly(
       let r = clamp255(defaultRGBA[0]);
       let g = clamp255(defaultRGBA[1]);
       let b = clamp255(defaultRGBA[2]);
+      let f0 = 0;
+      let f1 = 0;
+      let f2 = 0;
 
       if (hasColor && tr && tg && tb) {
         const rv = Number(readScalar(ir, tr, base));
@@ -611,18 +743,49 @@ export function parseSplatPly(
       } else if (hasFDC && tf0 && tf1 && tf2) {
         // GaussianSplats3D-style DC SH -> RGB conversion:
         // rgb = (0.5 + SH_C0 * f_dc) * 255
-        const f0 = Number(readScalar(if0, tf0, base));
-        const f1 = Number(readScalar(if1, tf1, base));
-        const f2 = Number(readScalar(if2, tf2, base));
+        f0 = Number(readScalar(if0, tf0, base));
+        f1 = Number(readScalar(if1, tf1, base));
+        f2 = Number(readScalar(if2, tf2, base));
         r = clamp255((0.5 + SH_C0 * f0) * 255);
         g = clamp255((0.5 + SH_C0 * f1) * 255);
         b = clamp255((0.5 + SH_C0 * f2) * 255);
       }
 
       rgba[i] = rgbaToUint32(r, g, b, a);
+
+      if (shDegree > 0) {
+        if (shRestValues) {
+          for (let k = 0; k < shRestEntries.length; k++) {
+            const entry = shRestEntries[k];
+            shRestValues[k] = Number(readScalar(entry.index, entry.type, base));
+          }
+        }
+        writeShRestCoeffs(
+          shRestValues ?? emptyShRest,
+          shDegree,
+          shCoeffsL1,
+          shCoeffsL2,
+          shCoeffsL3,
+          i,
+        );
+      }
     }
 
-    return { count, center, covariance, rgba, format: header.format };
+    const shL2Packed = packShCoeffsI16(shCoeffsL2);
+    const shL3Packed = packShCoeffsI16(shCoeffsL3);
+    return {
+      count,
+      center,
+      covariance,
+      rgba,
+      shCoeffsL1,
+      shCoeffsL2Packed: shL2Packed.data,
+      shCoeffsL2Scale: shL2Packed.scale,
+      shCoeffsL3Packed: shL3Packed.data,
+      shCoeffsL3Scale: shL3Packed.scale,
+      shDegree,
+      format: header.format,
+    };
   }
 
   // ASCII fallback (slow; OK for debugging)
@@ -722,6 +885,9 @@ export function parseSplatPly(
       let r = clamp255(defaultRGBA[0]);
       let g = clamp255(defaultRGBA[1]);
       let b = clamp255(defaultRGBA[2]);
+      let f0 = 0;
+      let f1 = 0;
+      let f2 = 0;
 
       if (rC >= 0 && gC >= 0 && bC >= 0) {
         // ASCII ambiguous: assume 0..1 floats if <=1 else bytes
@@ -734,18 +900,49 @@ export function parseSplatPly(
         g = clamp255(asFloat01 ? gv * 255 : gv);
         b = clamp255(asFloat01 ? bv * 255 : bv);
       } else if (f0C >= 0 && f1C >= 0 && f2C >= 0) {
-        const f0 = Number(parts[f0C]);
-        const f1 = Number(parts[f1C]);
-        const f2 = Number(parts[f2C]);
+        f0 = Number(parts[f0C]);
+        f1 = Number(parts[f1C]);
+        f2 = Number(parts[f2C]);
         r = clamp255((0.5 + SH_C0 * f0) * 255);
         g = clamp255((0.5 + SH_C0 * f1) * 255);
         b = clamp255((0.5 + SH_C0 * f2) * 255);
       }
 
       rgba[i] = rgbaToUint32(r, g, b, a);
+
+      if (shDegree > 0) {
+        if (shRestValues) {
+          for (let k = 0; k < shRestEntries.length; k++) {
+            const entry = shRestEntries[k];
+            shRestValues[k] = Number(parts[entry.index]);
+          }
+        }
+        writeShRestCoeffs(
+          shRestValues ?? emptyShRest,
+          shDegree,
+          shCoeffsL1,
+          shCoeffsL2,
+          shCoeffsL3,
+          i,
+        );
+      }
     }
 
-    return { count, center, covariance, rgba, format: header.format };
+    const shL2Packed = packShCoeffsI16(shCoeffsL2);
+    const shL3Packed = packShCoeffsI16(shCoeffsL3);
+    return {
+      count,
+      center,
+      covariance,
+      rgba,
+      shCoeffsL1,
+      shCoeffsL2Packed: shL2Packed.data,
+      shCoeffsL2Scale: shL2Packed.scale,
+      shCoeffsL3Packed: shL3Packed.data,
+      shCoeffsL3Scale: shL3Packed.scale,
+      shDegree,
+      format: header.format,
+    };
   }
 
   throw new Error(`PLY: unsupported format ${header.format}`);

@@ -1,4 +1,4 @@
-import type { Node } from "three/webgpu";
+import type { Node, StorageBufferNode } from "three/webgpu";
 import {
   add,
   cameraProjectionMatrix,
@@ -9,8 +9,10 @@ import {
   mat3,
   max,
   min,
+  wgslFn,
   modelViewMatrix,
   mul,
+  pow,
   positionLocal,
   screenSize,
   sqrt,
@@ -131,6 +133,129 @@ export const DEFAULT_SPLAT_SCALE = 1.0;
 export const DEFAULT_MAX_SCREEN_SPACE_SPLAT_SIZE = 2048.0;
 // GaussianSplats3D uses sqrt(8) scaling in the vertex stage, so the fragment cutoff is A > 8.
 export const DEFAULT_GAUSSIAN_CUTOFF_A = 8.0;
+export const SH_C1 = 0.4886025119029199;
+export const SH_C2 = [
+  1.0925484, -1.0925484, 0.3153916, -1.0925484, 0.5462742,
+] as const;
+
+export function encodeColorLinear(color: Node): Node {
+  return pow(max(vec3(color), vec3(0.0)), vec3(2.2));
+}
+
+export const buildShL1Contribution = wgslFn(`
+fn buildShL1Contribution(
+  dir: vec3<f32>,
+  sh1: vec3<f32>,
+  sh2: vec3<f32>,
+  sh3: vec3<f32>
+) -> vec3<f32> {
+  let x = dir.x;
+  let y = dir.y;
+  let z = dir.z;
+  return 0.4886025119029199 * (-sh1 * y + sh2 * z - sh3 * x);
+}
+`);
+
+export const buildShL2Contribution = wgslFn(`
+fn buildShL2Contribution(
+  dir: vec3<f32>,
+  sh4: vec3<f32>,
+  sh5: vec3<f32>,
+  sh6: vec3<f32>,
+  sh7: vec3<f32>,
+  sh8: vec3<f32>
+) -> vec3<f32> {
+  let x = dir.x;
+  let y = dir.y;
+  let z = dir.z;
+
+  let xx = x * x;
+  let yy = y * y;
+  let zz = z * z;
+  let xy = x * y;
+  let yz = y * z;
+  let xz = x * z;
+  let z2 = 2.0 * zz - xx - yy;
+  let x2y2 = xx - yy;
+
+  return
+    (1.0925484 * xy) * sh4 +
+    (-1.0925484 * yz) * sh5 +
+    (0.3153916 * z2) * sh6 +
+    (-1.0925484 * xz) * sh7 +
+    (0.5462742 * x2y2) * sh8;
+}
+`);
+
+export const unpackShVec3 = wgslFn(`
+fn unpackShVec3(u0: u32, u1: u32, scale: f32) -> vec3<f32> {
+  let r = f32(i32(u0 << 16) >> 16);
+  let g = f32(i32(u0) >> 16);
+  let b = f32(i32(u1 << 16) >> 16);
+  return vec3<f32>(r, g, b) * scale;
+}
+`);
+
+export function buildShContributionFromBuffers({
+  dir,
+  shCoeffsL1,
+  shCoeffsL2,
+  shCoeffsL2Scale,
+  shDegree,
+  splatIndex,
+}: {
+  dir: Node; // vec3, normalized
+  shCoeffsL1: StorageBufferNode | null | undefined;
+  shCoeffsL2: StorageBufferNode | null | undefined;
+  shCoeffsL2Scale: number;
+  shDegree: number; // 0/1/2/3
+  splatIndex: Node; // uint
+}): Node {
+  if (!shCoeffsL1 || shDegree < 1) {
+    return vec3(0.0);
+  }
+
+  const coeffBase1 = splatIndex.mul(3);
+  const sh1 = shCoeffsL1.element(coeffBase1);
+  const sh2 = shCoeffsL1.element(add(coeffBase1, 1));
+  const sh3 = shCoeffsL1.element(add(coeffBase1, 2));
+
+  const l1 = buildShL1Contribution({ dir, sh1, sh2, sh3 });
+  if (!shCoeffsL2 || shDegree < 2) {
+    return l1;
+  }
+
+  const coeffBase2 = splatIndex.mul(10);
+  const scale2 = float(shCoeffsL2Scale);
+  const sh4 = unpackShVec3({
+    u0: shCoeffsL2.element(coeffBase2),
+    u1: shCoeffsL2.element(add(coeffBase2, 1)),
+    scale: scale2,
+  });
+  const sh5 = unpackShVec3({
+    u0: shCoeffsL2.element(add(coeffBase2, 2)),
+    u1: shCoeffsL2.element(add(coeffBase2, 3)),
+    scale: scale2,
+  });
+  const sh6 = unpackShVec3({
+    u0: shCoeffsL2.element(add(coeffBase2, 4)),
+    u1: shCoeffsL2.element(add(coeffBase2, 5)),
+    scale: scale2,
+  });
+  const sh7 = unpackShVec3({
+    u0: shCoeffsL2.element(add(coeffBase2, 6)),
+    u1: shCoeffsL2.element(add(coeffBase2, 7)),
+    scale: scale2,
+  });
+  const sh8 = unpackShVec3({
+    u0: shCoeffsL2.element(add(coeffBase2, 8)),
+    u1: shCoeffsL2.element(add(coeffBase2, 9)),
+    scale: scale2,
+  });
+
+  const l2 = buildShL2Contribution({ dir, sh4, sh5, sh6, sh7, sh8 });
+  return add(l1, l2);
+}
 
 /**
  * Gaussian-splat vertex stage (position only), wrapped in `Fn`.

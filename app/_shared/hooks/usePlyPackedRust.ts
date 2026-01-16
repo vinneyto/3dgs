@@ -32,6 +32,12 @@ export function usePlyPackedRust(url: string): {
           center: new Float32Array(out.center),
           covariance: new Float32Array(out.covariance),
           rgba: new Uint32Array(out.rgba),
+          shCoeffsL1: new Float32Array(out.shCoeffsL1),
+          shCoeffsL2Packed: new Uint32Array(out.shCoeffsL2Packed),
+          shCoeffsL2Scale: out.shCoeffsL2Scale,
+          shCoeffsL3Packed: new Uint32Array(out.shCoeffsL3Packed),
+          shCoeffsL3Scale: out.shCoeffsL3Scale,
+          shDegree: out.shDegree,
         };
 
         out.free?.();
@@ -41,6 +47,10 @@ export function usePlyPackedRust(url: string): {
           centerLen: packed.center.length,
           covarianceLen: packed.covariance.length,
           rgbaLen: packed.rgba.length,
+          shCoeffsL1Len: packed.shCoeffsL1?.length ?? 0,
+          shCoeffsL2Len: packed.shCoeffsL2Packed?.length ?? 0,
+          shCoeffsL3Len: packed.shCoeffsL3Packed?.length ?? 0,
+          shDegree: packed.shDegree ?? 0,
         });
 
         setData(packed);

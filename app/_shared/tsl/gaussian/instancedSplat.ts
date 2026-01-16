@@ -2,6 +2,7 @@ import type { Node, StorageBufferNode } from "three/webgpu";
 import {
   add,
   bitAnd,
+  cameraPosition,
   cameraProjectionMatrix,
   div,
   float,
@@ -9,7 +10,7 @@ import {
   log,
   mat3,
   max,
-  pow,
+  modelWorldMatrix,
   positionLocal,
   screenSize,
   shiftRight,
@@ -24,8 +25,10 @@ import {
   DEFAULT_KERNEL_2D_SIZE,
   DEFAULT_MAX_SCREEN_SPACE_SPLAT_SIZE,
   DEFAULT_SPLAT_SCALE,
+  encodeColorLinear,
   createGaussianSplatFragmentStage,
   createGaussianSplatVertexStage,
+  buildShContributionFromBuffers,
 } from "./helpers";
 
 function unpackRGBA8UintToColorOpacity(rgbaPacked: Node): {
@@ -73,6 +76,10 @@ export function instancedSplat({
   centers,
   cov,
   rgba,
+  shCoeffsL1,
+  shCoeffsL2,
+  shCoeffsL2Scale = 1,
+  shDegree = 0,
   sortedIndices,
   kernel2DSize = DEFAULT_KERNEL_2D_SIZE,
   splatScale = DEFAULT_SPLAT_SCALE,
@@ -82,10 +89,18 @@ export function instancedSplat({
   cutoffMode = "opacity",
   opacityMultiplier = 1.0,
   encodeLinear = true,
+  shDebugColorOnly = false,
+  debugWorldViewDir = false,
+  enableSh = true,
 }: {
   centers: StorageBufferNode;
   cov: StorageBufferNode;
   rgba: StorageBufferNode;
+  shCoeffsL1?: StorageBufferNode | null;
+  shCoeffsL2?: StorageBufferNode | null;
+  shCoeffsL2Scale?: number;
+  /** Max SH degree present (0/1/2/3). */
+  shDegree?: number;
   sortedIndices?: StorageBufferNode | null;
   kernel2DSize?: number;
   splatScale?: number;
@@ -106,6 +121,12 @@ export function instancedSplat({
    * if true, treat packed RGB as sRGB and convert to linear via `pow(rgb, 2.2)`.
    */
   encodeLinear?: boolean;
+  /** Debug: output only SH contribution (no base color). */
+  shDebugColorOnly?: boolean;
+  /** Debug: output worldViewDir as RGB. */
+  debugWorldViewDir?: boolean;
+  /** Enable SH contribution. */
+  enableSh?: boolean;
 }): InstancedSplatNodes {
   // Compute focal length in PIXELS directly in shader (GaussianSplats3D-style):
   // fxPx = P00 * (W/2), fyPx = P11 * (H/2) where screenSize is drawing-buffer size (physical px).
@@ -135,9 +156,31 @@ export function instancedSplat({
   const rgbaPacked = rgba.element(splatIndex);
   const { colorNode: instanceColor0, opacityNode: instanceOpacity } =
     unpackRGBA8UintToColorOpacity(rgbaPacked);
-  const instanceColor = encodeLinear
-    ? pow(vec3(instanceColor0), vec3(2.2))
-    : vec3(instanceColor0);
+  const instanceColor = vec3(instanceColor0);
+
+  const worldCenter4 = modelWorldMatrix.mul(vec4(center, 1.0));
+  const worldViewDir = vec3(worldCenter4.xyz)
+    .sub(vec3(cameraPosition))
+    .normalize();
+  const shContribution = enableSh
+    ? buildShContributionFromBuffers({
+        dir: worldViewDir,
+        shCoeffsL1,
+        shCoeffsL2,
+        shCoeffsL2Scale,
+        shDegree,
+        splatIndex,
+      })
+    : vec3(0.0);
+  const worldViewDirColor = add(worldViewDir.mul(0.5), vec3(0.5));
+  const shadedColor = debugWorldViewDir
+    ? worldViewDirColor
+    : shDebugColorOnly
+      ? shContribution
+      : add(instanceColor, shContribution);
+  const shadedColorLinear = encodeLinear
+    ? encodeColorLinear(shadedColor)
+    : shadedColor;
 
   // Varyings (created here, used by fragment stage)
   const corner = vec2(positionLocal.x, positionLocal.y);
@@ -163,7 +206,7 @@ export function instancedSplat({
     cutoffNode = float(cutoffA);
   }
 
-  const vColor = vec4(instanceColor, instanceOpacity).toVarying("vColor");
+  const vColor = vec4(shadedColorLinear, instanceOpacity).toVarying("vColor");
 
   const positionNode = createGaussianSplatVertexStage({
     center,
@@ -181,7 +224,7 @@ export function instancedSplat({
     cutoffA: cutoffNode,
   });
 
-  const colorNode = vec3(rgbaOut.x, rgbaOut.y, rgbaOut.z);
+  const colorNode = vec3(rgbaOut.x, rgbaOut.y, rgbaOut.z).clamp(0.0, 1.0);
   const opacityNode = float(rgbaOut.w);
 
   return { positionNode, colorNode, opacityNode };

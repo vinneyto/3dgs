@@ -7,6 +7,12 @@ pub struct SplatPlyBuffersCore {
     pub center: Box<[f32]>,     // 3N
     pub covariance: Box<[f32]>, // 6N
     pub rgba: Box<[u32]>,       // N
+    pub sh_coeffs_l1: Box<[f32]>, // 9 * N (3 coeffs * RGB)
+    pub sh_coeffs_l2_packed: Box<[u32]>, // 10 * N (packed i16 vec3 -> 2 u32)
+    pub sh_coeffs_l2_scale: f32,
+    pub sh_coeffs_l3_packed: Box<[u32]>, // 14 * N (packed i16 vec3 -> 2 u32)
+    pub sh_coeffs_l3_scale: f32,
+    pub sh_degree: u32,
     pub bbox_min: [f32; 3],
     pub bbox_max: [f32; 3],
 }
@@ -400,6 +406,78 @@ fn pick_name(map: &HashMap<String, (usize, PlyScalarType)>, names: &[&str]) -> O
     None
 }
 
+fn parse_f_rest_index(name: &str) -> Option<usize> {
+    let lower = name.to_lowercase();
+    let suffix = lower.strip_prefix("f_rest_")?;
+    suffix.parse::<usize>().ok()
+}
+
+fn collect_sh_rest_props(el: &PlyElement) -> Vec<(usize, PlyScalarType)> {
+    let mut rest: Vec<(usize, usize, PlyScalarType)> = Vec::new();
+    for (i, p) in el.properties.iter().enumerate() {
+        if let PlyProperty::Scalar { name, ty } = p {
+            if let Some(idx) = parse_f_rest_index(name) {
+                rest.push((idx, i, *ty));
+            }
+        }
+    }
+    rest.sort_by_key(|(idx, _, _)| *idx);
+    rest.into_iter().map(|(_, i, ty)| (i, ty)).collect()
+}
+
+fn split_sh_rest_coeffs(
+    sh_rest: &[f32],
+    sh1: &mut Vec<f32>,
+    sh2: &mut Vec<f32>,
+    sh3: &mut Vec<f32>,
+) {
+    if sh_rest.is_empty() {
+        return;
+    }
+    let coeffs_per_channel = sh_rest.len() / 3;
+    for i in 0..coeffs_per_channel {
+        let r = sh_rest[i];
+        let g = sh_rest[coeffs_per_channel + i];
+        let b = sh_rest[2 * coeffs_per_channel + i];
+        if i < 3 {
+            sh1.extend_from_slice(&[r, g, b]);
+        } else if i < 8 {
+            sh2.extend_from_slice(&[r, g, b]);
+        } else {
+            sh3.extend_from_slice(&[r, g, b]);
+        }
+    }
+}
+
+fn pack_sh_coeffs_i16(sh: &[f32]) -> (Vec<u32>, f32) {
+    if sh.is_empty() {
+        return (Vec::new(), 1.0);
+    }
+    let mut max_abs = 0.0f32;
+    for v in sh.iter() {
+        max_abs = max_abs.max(v.abs());
+    }
+    let scale = if max_abs > 0.0 { max_abs / 32767.0 } else { 1.0 };
+    let mut out: Vec<u32> = Vec::with_capacity((sh.len() / 3) * 2);
+    let mut i = 0usize;
+    while i + 2 < sh.len() {
+        let q = |v: f32| -> i16 {
+            let scaled = (v / scale).round().clamp(-32767.0, 32767.0);
+            scaled as i16
+        };
+        let r = q(sh[i]) as u16;
+        let g = q(sh[i + 1]) as u16;
+        let b = q(sh[i + 2]) as u16;
+        let u0 = (r as u32) | ((g as u32) << 16);
+        let u1 = b as u32;
+        out.push(u0);
+        out.push(u1);
+        i += 3;
+    }
+    (out, scale)
+}
+
+
 pub fn parse_splat_ply_core(bytes: &[u8]) -> Result<SplatPlyBuffersCore, PlyError> {
     parse_splat_ply_core_with_opts(bytes, true, true)
 }
@@ -480,10 +558,42 @@ pub fn parse_splat_ply_core_with_opts(
     let fdc2 = pick_name(&pmap, &["f_dc_2"]);
     const SH_C0: f32 = 0.28209479177387814;
 
+    let sh_rest_props = collect_sh_rest_props(el);
+    if sh_rest_props.len() % 3 != 0 {
+        return Err(PlyError::msg("PLY: f_rest_* count must be divisible by 3"));
+    }
+    let sh_rest_count = sh_rest_props.len();
+    let sh_degree = match sh_rest_count {
+        0 => 0,
+        9 => 1,
+        24 => 2,
+        45 => 3,
+        _ => {
+            return Err(PlyError::msg(
+                "PLY: invalid f_rest_* count (expected 0, 9, 24, or 45)",
+            ))
+        }
+    };
+
     let count = el.count;
     let mut center: Vec<f32> = vec![0.0; count * 3];
     let mut covariance: Vec<f32> = vec![0.0; count * 6];
     let mut rgba: Vec<u32> = vec![rgba_to_u32(255, 255, 255, 255); count];
+    let mut sh_coeffs_l1: Vec<f32> = if sh_degree >= 1 {
+        Vec::with_capacity(count * 9)
+    } else {
+        Vec::new()
+    };
+    let mut sh_coeffs_l2: Vec<f32> = if sh_degree >= 2 {
+        Vec::with_capacity(count * 15)
+    } else {
+        Vec::new()
+    };
+    let mut sh_coeffs_l3: Vec<f32> = if sh_degree >= 3 {
+        Vec::with_capacity(count * 21)
+    } else {
+        Vec::new()
+    };
 
     let mut bbox_min = [f32::INFINITY, f32::INFINITY, f32::INFINITY];
     let mut bbox_max = [f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY];
@@ -555,7 +665,6 @@ pub fn parse_splat_ply_core_with_opts(
                 let mut r = 255u32;
                 let mut g = 255u32;
                 let mut b = 255u32;
-
                 if let (Some((ir, tr)), Some((ig, tg)), Some((ib, tb))) =
                     (color_r, color_g, color_b)
                 {
@@ -587,6 +696,14 @@ pub fn parse_splat_ply_core_with_opts(
                 }
 
                 rgba[i] = rgba_to_u32(r, g, b, a);
+
+                if sh_degree > 0 {
+                    let mut rest: Vec<f32> = Vec::with_capacity(sh_rest_count);
+                    for (idx, ty) in sh_rest_props.iter() {
+                        rest.push(read(*idx, *ty)? as f32);
+                    }
+                    split_sh_rest_coeffs(&rest, &mut sh_coeffs_l1, &mut sh_coeffs_l2, &mut sh_coeffs_l3);
+                }
                 base += stride;
             }
         }
@@ -661,6 +778,19 @@ pub fn parse_splat_ply_core_with_opts(
             let f1_c = col(&["f_dc_1"]);
             let f2_c = col(&["f_dc_2"]);
 
+            let mut sh_rest_cols: Vec<(usize, usize)> = Vec::new();
+            for p in el.properties.iter() {
+                if let PlyProperty::Scalar { name, .. } = p {
+                    if let Some(idx) = parse_f_rest_index(name) {
+                        if let Some(col_idx) = col(&[name.as_str()]) {
+                            sh_rest_cols.push((idx, col_idx));
+                        }
+                    }
+                }
+            }
+            sh_rest_cols.sort_by_key(|(idx, _)| *idx);
+            let sh_rest_cols: Vec<usize> = sh_rest_cols.into_iter().map(|(_, c)| c).collect();
+
             for i in 0..count {
                 let parts: Vec<&str> = lines[i].split_whitespace().collect();
                 let parse = |idx: usize| -> Result<f32, PlyError> {
@@ -717,7 +847,6 @@ pub fn parse_splat_ply_core_with_opts(
                 let mut r = 255u32;
                 let mut g = 255u32;
                 let mut b = 255u32;
-
                 if let (Some(rc), Some(gc), Some(bc)) = (r_c, g_c, b_c) {
                     let rv = parse(rc)?;
                     let gv = parse(gc)?;
@@ -736,9 +865,20 @@ pub fn parse_splat_ply_core_with_opts(
                 }
 
                 rgba[i] = rgba_to_u32(r, g, b, a);
+
+                if sh_degree > 0 {
+                    let mut rest: Vec<f32> = Vec::with_capacity(sh_rest_cols.len());
+                    for idx in sh_rest_cols.iter() {
+                        rest.push(parse(*idx)?);
+                    }
+                    split_sh_rest_coeffs(&rest, &mut sh_coeffs_l1, &mut sh_coeffs_l2, &mut sh_coeffs_l3);
+                }
             }
         }
     }
+
+    let (sh_coeffs_l2_packed, sh_coeffs_l2_scale) = pack_sh_coeffs_i16(&sh_coeffs_l2);
+    let (sh_coeffs_l3_packed, sh_coeffs_l3_scale) = pack_sh_coeffs_i16(&sh_coeffs_l3);
 
     Ok(SplatPlyBuffersCore {
         count: count as u32,
@@ -746,6 +886,12 @@ pub fn parse_splat_ply_core_with_opts(
         center: center.into_boxed_slice(),
         covariance: covariance.into_boxed_slice(),
         rgba: rgba.into_boxed_slice(),
+        sh_coeffs_l1: sh_coeffs_l1.into_boxed_slice(),
+        sh_coeffs_l2_packed: sh_coeffs_l2_packed.into_boxed_slice(),
+        sh_coeffs_l2_scale,
+        sh_coeffs_l3_packed: sh_coeffs_l3_packed.into_boxed_slice(),
+        sh_coeffs_l3_scale,
+        sh_degree,
         bbox_min,
         bbox_max,
     })

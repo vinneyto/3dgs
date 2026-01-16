@@ -19,15 +19,20 @@ import {
 export function NewSplatScene({
   data,
   controlsGroup = "Splats",
+  meshScale = [1, -1, 1],
+  disableShBuffers = false,
 }: {
   data: PlyPacked;
   controlsGroup?: string;
+  meshScale?: [number, number, number];
+  disableShBuffers?: boolean;
 }) {
   const {
     computeDepthKeys,
     sortByDepth,
     renderSplats,
     useDepth,
+    enableSh,
     // params (compile-time for now: changing them rebuilds nodes/material)
     kernel2DSize,
     splatScale,
@@ -36,11 +41,14 @@ export function NewSplatScene({
     cutoffMode,
     opacityMultiplier,
     encodeLinear,
+    shDebugColorOnly,
+    debugWorldViewDir,
   } = useControls(controlsGroup, {
     computeDepthKeys: { value: true },
     sortByDepth: { value: true },
     renderSplats: { value: true },
     useDepth: { value: true },
+    enableSh: { value: !disableShBuffers },
     kernel2DSize: { value: 0.3, min: 0.0, max: 2.0, step: 0.01 },
     splatScale: { value: 1.0, min: 0.1, max: 4.0, step: 0.01 },
     maxScreenSpaceSplatSize: { value: 2048, min: 64, max: 4096, step: 1 },
@@ -51,10 +59,31 @@ export function NewSplatScene({
     },
     opacityMultiplier: { value: 1.0, min: 0.0, max: 2.0, step: 0.01 },
     encodeLinear: { value: true },
+    shDebugColorOnly: { value: false },
+    debugWorldViewDir: { value: false },
   });
 
   // Buffers (same as SplatScene)
-  const { centersBuf, covBuf, rgbaBuf } = usePlyEllipsoidBuffersFromData(data);
+  const splatData = disableShBuffers
+    ? {
+        ...data,
+        shCoeffsL1: undefined,
+        shCoeffsL2Packed: undefined,
+        shCoeffsL2Scale: undefined,
+        shCoeffsL3Packed: undefined,
+        shCoeffsL3Scale: undefined,
+        shDegree: 0,
+      }
+    : data;
+  const {
+    centersBuf,
+    covBuf,
+    rgbaBuf,
+    shCoeffsL1Buf,
+    shCoeffsL2Buf,
+    shCoeffsL2Scale,
+    shDegree,
+  } = usePlyEllipsoidBuffersFromData(splatData);
 
   // Keep a mesh ref so depth computation can match the same transform path as the rendering scene.
   const meshRef = useRef<InstancedMesh | null>(null);
@@ -80,6 +109,13 @@ export function NewSplatScene({
         centers: centersBuf,
         cov: covBuf,
         rgba: rgbaBuf,
+        shCoeffsL1: shCoeffsL1Buf,
+        shCoeffsL2: shCoeffsL2Buf,
+        shCoeffsL2Scale,
+        shDegree,
+        enableSh,
+        shDebugColorOnly,
+        debugWorldViewDir,
         sortedIndices: sortedIndicesBuf,
         kernel2DSize,
         splatScale,
@@ -93,6 +129,13 @@ export function NewSplatScene({
       centersBuf,
       covBuf,
       rgbaBuf,
+      shCoeffsL1Buf,
+      shCoeffsL2Buf,
+      shCoeffsL2Scale,
+      shDegree,
+      enableSh,
+      shDebugColorOnly,
+      debugWorldViewDir,
       sortedIndicesBuf,
       kernel2DSize,
       splatScale,
@@ -101,7 +144,7 @@ export function NewSplatScene({
       cutoffMode,
       opacityMultiplier,
       encodeLinear,
-    ],
+    ]
   );
 
   const material = useMemo(() => {
@@ -128,7 +171,7 @@ export function NewSplatScene({
       <instancedMesh
         args={[undefined, undefined, data.count]}
         frustumCulled={false}
-        scale={[1, -1, 1]}
+        scale={meshScale}
         ref={meshRef}
         visible={renderSplats}
         renderOrder={10}
