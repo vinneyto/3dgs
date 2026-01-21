@@ -16,8 +16,24 @@ impl ComputeContext {
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
             .map_err(|e| e.to_string())?;
+        let limits = adapter.limits();
+        println!("adapter max_buffer_size: {}", limits.max_buffer_size);
+        println!(
+            "adapter max_storage_buffer_binding_size: {}",
+            limits.max_storage_buffer_binding_size
+        );
+        let required_limits = wgpu::Limits {
+            max_buffer_size: limits.max_buffer_size,
+            max_storage_buffer_binding_size: limits.max_storage_buffer_binding_size,
+            ..wgpu::Limits::default()
+        };
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default())
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    required_limits,
+                    ..Default::default()
+                },
+            )
             .await
             .map_err(|e| e.to_string())?;
         Ok(Self { device, queue })
@@ -255,6 +271,89 @@ impl ComputeKernel {
             });
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.dispatch_workgroups(x, y, z);
+        }
+        ctx.queue.submit(Some(encoder.finish()));
+    }
+}
+
+pub struct ComputePipeline {
+    pipeline: wgpu::ComputePipeline,
+    bind_group_layout: wgpu::BindGroupLayout,
+}
+
+impl ComputePipeline {
+    pub fn new(
+        ctx: &ComputeContext,
+        shader_src: &str,
+        entry: &str,
+        bindings: &[BufferBindingDesc],
+    ) -> Self {
+        let shader = ctx.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("compute_shader"),
+            source: wgpu::ShaderSource::Wgsl(shader_src.into()),
+        });
+        let bind_group_layout =
+            ctx.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("compute_bind_group_layout"),
+                    entries: &bindings.iter().map(|b| b.layout_entry()).collect::<Vec<_>>(),
+                });
+        let pipeline_layout =
+            ctx.device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("compute_pipeline_layout"),
+                    bind_group_layouts: &[&bind_group_layout],
+                    immediate_size: 0,
+                });
+        let pipeline =
+            ctx.device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("compute_pipeline"),
+                    layout: Some(&pipeline_layout),
+                    module: &shader,
+                    entry_point: Some(entry),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    cache: None,
+                });
+        Self {
+            pipeline,
+            bind_group_layout,
+        }
+    }
+
+    pub fn create_bind_group<'a>(
+        &self,
+        ctx: &ComputeContext,
+        resources: &[BufferBinding<'a>],
+    ) -> wgpu::BindGroup {
+        ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("compute_bind_group"),
+            layout: &self.bind_group_layout,
+            entries: &resources.iter().map(|r| r.entry()).collect::<Vec<_>>(),
+        })
+    }
+
+    pub fn dispatch_with_bind_group(
+        &self,
+        ctx: &ComputeContext,
+        bind_group: &wgpu::BindGroup,
+        x: u32,
+        y: u32,
+        z: u32,
+    ) {
+        let mut encoder =
+            ctx.device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("compute_encoder"),
+                });
+        {
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("compute_pass"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.pipeline);
+            pass.set_bind_group(0, bind_group, &[]);
             pass.dispatch_workgroups(x, y, z);
         }
         ctx.queue.submit(Some(encoder.finish()));
