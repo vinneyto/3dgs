@@ -21,6 +21,7 @@ const demos = [
   { href: "/ply-gaussians", label: "PLY gaussians (WIP)" },
   { href: "/photo-ply", label: "Photo PLY (WIP)" },
   { href: "/ref-splats", label: "Ref splats (PLY)" },
+  { href: "/prefix-sum", label: "Prefix sum (CPU / TS)" },
   { href: "/rust-wasm", label: "PLY parse (Rust WASM)" },
   { href: "/rust-bitops", label: "Rust bitwise ops" },
   { href: "/sh-sphere", label: "SH sphere (widget)" },

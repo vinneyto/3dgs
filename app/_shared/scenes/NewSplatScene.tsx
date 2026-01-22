@@ -144,7 +144,7 @@ export function NewSplatScene({
       cutoffMode,
       opacityMultiplier,
       encodeLinear,
-    ]
+    ],
   );
 
   const material = useMemo(() => {

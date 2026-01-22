@@ -15,16 +15,19 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
+    "katex": "^0.16.22",
     "leva": "^0.9.36",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-katex": "^3.1.0",
     "three": "^0.182.0"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/react-katex": "^3.0.4",
     "@types/three": "^0.182.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",

@@ -2,6 +2,7 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { DemoShell } from "./DemoShell";
+import "katex/dist/katex.min.css";
 
 export const metadata: Metadata = { title: "3DGS examples" };
 

@@ -177,6 +177,46 @@ h1 {
   pointer-events: none;
 }
 
+/* --- Prefix-sum benchmark "syntax highlighting" helpers --- */
+
+.metricBandwidth {
+  font-weight: 800;
+  color: #7dd3fc; /* cyan */
+}
+
+.metricSpeedup {
+  font-weight: 800;
+  color: #a7f3d0; /* mint */
+}
+
+.metricOk {
+  font-weight: 700;
+  color: #86efac; /* green */
+}
+
+.metricBad {
+  font-weight: 700;
+  color: #fda4af; /* red */
+}
+
+.arrayLabel {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.arrayValueInput {
+  color: #fde68a; /* amber */
+  background: rgba(253, 230, 138, 0.08);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.arrayValuePrefix {
+  color: #c4b5fd; /* violet */
+  background: rgba(196, 181, 253, 0.08);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
 @media (max-width: 820px) {
   .content {
     overflow: hidden;
