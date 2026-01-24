@@ -29,11 +29,6 @@ fi
 
 mkdir -p "${OUT_DIR}"
 
-if [ ! -f "${CKPT}" ]; then
-  echo "[generate] WARNING: checkpoint not found at ${CKPT}" >&2
-  echo "[generate] The SHARP CLI may try to auto-download on first run (see ml-sharp README)." >&2
-fi
-
 echo "[generate] input: ${INPUT_PATH}"
 echo "[generate] out:   ${OUT_DIR}"
 echo "[generate] ckpt:  ${CKPT}"
@@ -41,10 +36,20 @@ echo "[generate] ckpt:  ${CKPT}"
 # Keep HuggingFace/torch caches inside the repo.
 export HF_HOME="${MLCV_DIR}/.hf-cache"
 
-"${VENV_DIR}/bin/sharp" predict \
-  -i "${INPUT_PATH%/*}" \
-  -o "${OUT_DIR}" \
-  -c "${CKPT}"
+SHARP_ARGS=(
+  predict
+  -i "${INPUT_PATH%/*}"
+  -o "${OUT_DIR}"
+)
+
+if [ -f "${CKPT}" ]; then
+  SHARP_ARGS+=(-c "${CKPT}")
+else
+  echo "[generate] WARNING: checkpoint not found at ${CKPT}" >&2
+  echo "[generate] Proceeding without -c to allow SHARP to auto-download defaults (see ml-sharp README)." >&2
+fi
+
+"${VENV_DIR}/bin/sharp" "${SHARP_ARGS[@]}"
 
 echo "[generate] done. output directory: ${OUT_DIR}"
 

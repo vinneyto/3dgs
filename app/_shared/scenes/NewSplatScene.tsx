@@ -1,6 +1,7 @@
 import { OrbitControls } from "@react-three/drei";
-import { useControls } from "leva";
-import { useMemo, useRef } from "react";
+import { useThree } from "@react-three/fiber";
+import { button, useControls } from "leva";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { InstancedMesh } from "three";
 import {
   DoubleSide,
@@ -27,7 +28,33 @@ export function NewSplatScene({
   meshScale?: [number, number, number];
   disableShBuffers?: boolean;
 }) {
+  const camera = useThree((s) => s.camera);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const orbitRef = useRef<any>(null);
+
+  const cameraZRef = useRef(-7);
+  const orbitTargetZRef = useRef(-10);
+
+  const applyCamera = useCallback(() => {
+    // Camera looks towards -Z; OrbitControls pivot is on -Z.
+    const targetZ = orbitTargetZRef.current;
+    const camZ = cameraZRef.current;
+    const target = { x: 0, y: 0, z: targetZ };
+
+    camera.position.set(0, 0, camZ);
+    camera.lookAt(target.x, target.y, target.z);
+
+    const controls = orbitRef.current;
+    if (controls?.target?.set) {
+      controls.target.set(target.x, target.y, target.z);
+      controls.update?.();
+    }
+  }, [camera]);
+
   const {
+    fov,
+    cameraZ,
+    orbitTargetZ,
     computeDepthKeys,
     sortByDepth,
     renderSplats,
@@ -44,6 +71,10 @@ export function NewSplatScene({
     shDebugColorOnly,
     debugWorldViewDir,
   } = useControls(controlsGroup, {
+    fov: { value: 50, min: 10, max: 120, step: 1 },
+    cameraZ: { value: -7, min: -100, max: 100, step: 0.1 },
+    orbitTargetZ: { value: -10, min: -200, max: 200, step: 0.1 },
+    applyCamera: button(() => applyCamera()),
     computeDepthKeys: { value: true },
     sortByDepth: { value: true },
     renderSplats: { value: true },
@@ -62,6 +93,22 @@ export function NewSplatScene({
     shDebugColorOnly: { value: false },
     debugWorldViewDir: { value: false },
   });
+
+  useEffect(() => {
+    cameraZRef.current = cameraZ;
+  }, [cameraZ]);
+
+  useEffect(() => {
+    orbitTargetZRef.current = orbitTargetZ;
+  }, [orbitTargetZ]);
+
+  useEffect(() => {
+    // Some photos are shot with zoom; allow matching intrinsics via FOV.
+    if ("isPerspectiveCamera" in camera && camera.isPerspectiveCamera) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, fov]);
 
   // Buffers (same as SplatScene)
   const splatData = disableShBuffers
@@ -163,7 +210,7 @@ export function NewSplatScene({
 
   return (
     <>
-      <OrbitControls makeDefault enableDamping />
+      <OrbitControls ref={orbitRef} makeDefault enableDamping />
       <ambientLight intensity={0.25} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} />
       <gridHelper args={[10, 10]} />
