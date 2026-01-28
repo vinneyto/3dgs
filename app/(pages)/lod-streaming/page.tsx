@@ -34,6 +34,7 @@ export default function LodStreamingPage() {
         >
           <LodStreamingScene
             meta={state.meta}
+            metaJson={state.metaJson}
             metaUrl={LOD_META_URL}
             capacity={MAX_CAPACITY}
           />

@@ -44,7 +44,9 @@ export class ChunkParsePool {
   private format: ChunkParseFormat;
 
   constructor(options: ChunkParsePoolOptions = {}) {
-    const size = options.size ?? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2));
+    const concurrency =
+      typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 2 : 2;
+    const size = options.size ?? Math.max(1, Math.min(4, concurrency));
     this.format = options.format ?? "auto";
 
     for (let i = 0; i < size; i += 1) {

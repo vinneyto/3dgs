@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import type { LodMeta } from "../lod/types";
 
 export type LodMetaState =
-  | { status: "idle"; meta: null; error: null }
-  | { status: "loading"; meta: null; error: null }
-  | { status: "ready"; meta: LodMeta; error: null }
-  | { status: "error"; meta: null; error: string };
+  | { status: "idle"; meta: null; metaJson: null; error: null }
+  | { status: "loading"; meta: null; metaJson: null; error: null }
+  | { status: "ready"; meta: LodMeta; metaJson: string; error: null }
+  | { status: "error"; meta: null; metaJson: null; error: string };
 
 export function useLodMeta(url: string): LodMetaState {
   const [state, setState] = useState<LodMetaState>({
     status: "idle",
     meta: null,
+    metaJson: null,
     error: null,
   });
 
@@ -18,7 +19,7 @@ export function useLodMeta(url: string): LodMetaState {
     let cancelled = false;
     const ac = new AbortController();
 
-    setState({ status: "loading", meta: null, error: null });
+    setState({ status: "loading", meta: null, metaJson: null, error: null });
 
     (async () => {
       try {
@@ -26,16 +27,17 @@ export function useLodMeta(url: string): LodMetaState {
         if (!res.ok) {
           throw new Error(`fetch failed: ${res.status} ${res.statusText}`);
         }
-        const meta = (await res.json()) as LodMeta;
+        const metaJson = await res.text();
+        const meta = JSON.parse(metaJson) as LodMeta;
         if (!cancelled) {
-          setState({ status: "ready", meta, error: null });
+          setState({ status: "ready", meta, metaJson, error: null });
         }
       } catch (err) {
         if (cancelled || (err as Error)?.name === "AbortError") {
           return;
         }
         const message = err instanceof Error ? err.message : String(err);
-        setState({ status: "error", meta: null, error: message });
+        setState({ status: "error", meta: null, metaJson: null, error: message });
       }
     })();
 

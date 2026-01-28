@@ -14,6 +14,7 @@ import type { LodMeta } from "@/app/_shared/lod/types";
 
 export function LodStreamingScene({
   meta,
+  metaJson,
   metaUrl,
   capacity,
   lodIndex = 0,
@@ -22,6 +23,7 @@ export function LodStreamingScene({
   meshScale = [1, 1, 1],
 }: {
   meta: LodMeta;
+  metaJson: string;
   metaUrl: string;
   capacity: number;
   lodIndex?: number;
@@ -126,6 +128,7 @@ export function LodStreamingScene({
   useEffect(() => {
     const controller = new LodStreamingController({
       meta,
+      metaJson,
       metaUrl,
       lodIndex,
       parseFormat,
@@ -138,7 +141,7 @@ export function LodStreamingScene({
       controller.dispose();
       controllerRef.current = null;
     };
-  }, [meta, metaUrl, lodIndex, parseFormat, workerCount]);
+  }, [meta, metaJson, metaUrl, lodIndex, parseFormat, workerCount]);
 
   useFrame(() => {
     const controller = controllerRef.current;
