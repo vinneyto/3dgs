@@ -68,9 +68,15 @@ async function parseBytes(bytes: Uint8Array, format: "auto" | "ply" | "sog"): Pr
   return chunk;
 }
 
-const workerScope = self as unknown as DedicatedWorkerGlobalScope;
+const workerScope = self as unknown as {
+  postMessage: (message: ParseResponse, transfer?: Transferable[]) => void;
+  addEventListener: (
+    type: "message",
+    listener: (event: MessageEvent<ParseRequest>) => void,
+  ) => void;
+};
 
-workerScope.onmessage = async (event: MessageEvent<ParseRequest>) => {
+workerScope.addEventListener("message", async (event: MessageEvent<ParseRequest>) => {
   const { payload } = event.data;
   const { jobId, fileIndex, bytes, format } = payload;
 
@@ -105,4 +111,4 @@ workerScope.onmessage = async (event: MessageEvent<ParseRequest>) => {
     };
     workerScope.postMessage(response);
   }
-};
+});
