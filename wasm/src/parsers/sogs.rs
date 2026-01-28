@@ -16,7 +16,8 @@ struct PcSogsV2Json {
     scales: CodebookFilesV2,
     quats: FilesV2,
     sh0: CodebookFilesV2,
-    shN: Option<ShNV2>,
+    #[serde(rename = "shN")]
+    sh_n: Option<ShNV2>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -264,7 +265,7 @@ fn parse_sogs_v2_zip(bytes: &[u8]) -> Result<Splats, ParseError> {
     let mut sh_coeffs_l1: Vec<f32> = Vec::new();
     let mut sh_coeffs_l2: Vec<f32> = Vec::new();
     let mut sh_coeffs_l3: Vec<f32> = Vec::new();
-    if let Some(shn) = &json.shN {
+    if let Some(shn) = &json.sh_n {
         let use_sh3 = shn.bands >= 3;
         let use_sh2 = shn.bands >= 2;
         let use_sh1 = shn.bands >= 1;
@@ -451,18 +452,16 @@ fn read_zip_file_by_index(
 struct DecodedRgba {
     rgba: Vec<u8>,
     width: u32,
-    height: u32,
 }
 
 fn decode_rgba(bytes: &[u8]) -> Result<DecodedRgba, ParseError> {
     let img = image::load_from_memory(bytes)
         .map_err(|e| ParseError::msg(format!("SOGS v2: image decode failed: {e}")))?;
-    let (w, h) = img.dimensions();
+    let (w, _h) = img.dimensions();
     let rgba = img.into_rgba8().into_raw();
     Ok(DecodedRgba {
         rgba,
         width: w,
-        height: h,
     })
 }
 

@@ -49,3 +49,6 @@ next-env.d.ts
 # mlcv caches
 /mlcv/.mpl-cache/
 /mlcv/.torch-cache/
+
+# scratch / vendor analysis
+/external/
