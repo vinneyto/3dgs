@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRustSogsV2Parse } from "@/app/_shared/hooks/useRustSogsV2Parse";
 
-export default function RustWasmSogsV2ParsePage() {
-  const [url, setUrl] = useState<string>("");
-  const [submittedUrl, setSubmittedUrl] = useState<string>("");
+const SOG_URL = "/room.sog";
 
-  const state = useRustSogsV2Parse(submittedUrl);
+export default function RustWasmSogsV2ParsePage() {
+  const state = useRustSogsV2Parse(SOG_URL);
 
   const summary = useMemo(() => {
     if (state.kind !== "ready") return null;
@@ -37,31 +36,10 @@ export default function RustWasmSogsV2ParsePage() {
       </div>
 
       <div style={{ display: "grid", gap: 10, maxWidth: 760 }}>
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>
-            URL (served by Next, e.g. <code>/my_scene.sog</code>)
-          </label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="/scene.sog"
-              style={{ flex: 1, padding: "8px 10px" }}
-            />
-            <button
-              onClick={() => setSubmittedUrl(url)}
-              style={{ padding: "8px 12px" }}
-            >
-              Parse
-            </button>
-          </div>
-          <div className="muted">
-            Tip: drop a <code>.sog</code> into <code>public/</code> and use{" "}
-            <code>/filename.sog</code>.
-          </div>
+        <div className="muted">
+          Reading: <code>{SOG_URL}</code>
         </div>
 
-        {state.kind === "idle" && <div className="muted">Idle…</div>}
         {state.kind === "loading" && <div>Loading SOGS v2 + WASM…</div>}
         {state.kind === "error" && (
           <div style={{ color: "crimson" }}>
@@ -76,7 +54,8 @@ export default function RustWasmSogsV2ParsePage() {
             </div>
             <div>
               <b>Rust WASM</b>: {summary.rustMs.toFixed(2)} ms, count=
-              {summary.count}, format={summary.format}, shDegree={summary.shDegree}
+              {summary.count}, format={summary.format}, shDegree=
+              {summary.shDegree}
             </div>
             <div>
               <b>BBox</b>: min=[
