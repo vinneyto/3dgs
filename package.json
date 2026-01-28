@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "wasm:build": "wasm-pack build wasm --target web --out-dir ../app/_shared/wasm/pkg --out-name rust_wasm && rm -f app/_shared/wasm/pkg/.gitignore",
+    "wasm:build": "RUSTUP_TOOLCHAIN=1.88.0 wasm-pack build wasm --target web --out-dir ../app/_shared/wasm/pkg --out-name rust_wasm && rm -f app/_shared/wasm/pkg/.gitignore",
     "wasm:watch": "node scripts/wasm-watch.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
