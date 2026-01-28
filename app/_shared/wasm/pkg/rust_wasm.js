@@ -91,11 +91,67 @@ export class SplatsBuffers {
         wasm.__wbg_splatsbuffers_free(ptr, 0);
     }
     /**
+     * @returns {Float32Array}
+     */
+    get covariance() {
+        const ret = wasm.splatsbuffers_covariance(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {Float32Array}
+     */
+    get shCoeffsL1() {
+        const ret = wasm.splatsbuffers_shCoeffsL1(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get shCoeffsL2Scale() {
+        const ret = wasm.splatsbuffers_shCoeffsL2Scale(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get shCoeffsL3Scale() {
+        const ret = wasm.splatsbuffers_shCoeffsL3Scale(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {Uint32Array}
+     */
+    get shCoeffsL2Packed() {
+        const ret = wasm.splatsbuffers_shCoeffsL2Packed(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {Uint32Array}
+     */
+    get shCoeffsL3Packed() {
+        const ret = wasm.splatsbuffers_shCoeffsL3Packed(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {Uint32Array}
+     */
+    get rgba() {
+        const ret = wasm.splatsbuffers_rgba(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * @returns {number}
      */
     get count() {
         const ret = wasm.splatsbuffers_count(this.__wbg_ptr);
         return ret >>> 0;
+    }
+    /**
+     * @returns {Float32Array}
+     */
+    get center() {
+        const ret = wasm.splatsbuffers_center(this.__wbg_ptr);
+        return ret;
     }
     /**
      * @returns {string}
@@ -115,65 +171,9 @@ export class SplatsBuffers {
     /**
      * @returns {Float32Array}
      */
-    get center() {
-        const ret = wasm.splatsbuffers_center(this.__wbg_ptr);
+    get bboxMax() {
+        const ret = wasm.splatsbuffers_bboxMax(this.__wbg_ptr);
         return ret;
-    }
-    /**
-     * @returns {Float32Array}
-     */
-    get covariance() {
-        const ret = wasm.splatsbuffers_covariance(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {Uint32Array}
-     */
-    get rgba() {
-        const ret = wasm.splatsbuffers_rgba(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {Float32Array}
-     */
-    get shCoeffsL1() {
-        const ret = wasm.splatsbuffers_shCoeffsL1(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {Uint32Array}
-     */
-    get shCoeffsL2Packed() {
-        const ret = wasm.splatsbuffers_shCoeffsL2Packed(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {number}
-     */
-    get shCoeffsL2Scale() {
-        const ret = wasm.splatsbuffers_shCoeffsL2Scale(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {Uint32Array}
-     */
-    get shCoeffsL3Packed() {
-        const ret = wasm.splatsbuffers_shCoeffsL3Packed(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {number}
-     */
-    get shCoeffsL3Scale() {
-        const ret = wasm.splatsbuffers_shCoeffsL3Scale(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {number}
-     */
-    get shDegree() {
-        const ret = wasm.splatsbuffers_shDegree(this.__wbg_ptr);
-        return ret >>> 0;
     }
     /**
      * @returns {Float32Array}
@@ -183,11 +183,11 @@ export class SplatsBuffers {
         return ret;
     }
     /**
-     * @returns {Float32Array}
+     * @returns {number}
      */
-    get bboxMax() {
-        const ret = wasm.splatsbuffers_bboxMax(this.__wbg_ptr);
-        return ret;
+    get shDegree() {
+        const ret = wasm.splatsbuffers_shDegree(this.__wbg_ptr);
+        return ret >>> 0;
     }
 }
 if (Symbol.dispose) SplatsBuffers.prototype[Symbol.dispose] = SplatsBuffers.prototype.free;
