@@ -8,7 +8,7 @@ export type RustPlyParseState =
       kind: "ready";
       bytes: Uint8Array;
       rustMs: number;
-      out: import("../wasm/pkg/rust_wasm").SplatPlyBuffers;
+      out: import("../wasm/pkg/rust_wasm").SplatsBuffers;
     }
   | { kind: "error"; error: string };
 

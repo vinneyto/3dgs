@@ -1,11 +1,7 @@
 pub mod splats;
 pub mod splats_parser;
 pub mod parsers;
-pub mod ply_splat_core;
 pub mod bitops_core;
-
-#[cfg(target_arch = "wasm32")]
-mod ply_splat_wasm;
 
 #[cfg(target_arch = "wasm32")]
 mod splats_wasm;
@@ -14,15 +10,12 @@ mod splats_wasm;
 mod bitops_wasm;
 
 pub use splats::Splats;
-pub use ply_splat_core::{
-    parse_splat_ply_core, parse_splat_ply_core_with_opts, PlyError, PlyFormat, SplatPlyBuffersCore,
+
+#[cfg(target_arch = "wasm32")]
+pub use splats_wasm::{
+    parse_splat_ply, parse_splat_ply_with_opts, parse_splat_sogs_v2, parse_splats_auto,
+    SplatsBuffers,
 };
-
-#[cfg(target_arch = "wasm32")]
-pub use ply_splat_wasm::{parse_splat_ply, parse_splat_ply_with_opts, SplatPlyBuffers};
-
-#[cfg(target_arch = "wasm32")]
-pub use splats_wasm::{parse_splat_sogs_v2, parse_splats_auto, SplatsBuffers};
 
 pub use bitops_core::shift_right_report_u32 as shift_right_report_u32_core;
 pub use bitops_core::is_bit_set_u32 as is_bit_set_u32_core;

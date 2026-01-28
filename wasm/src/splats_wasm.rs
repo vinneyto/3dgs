@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 
-use crate::parsers::{ply::PlyParser, sogs::SogsV2Parser};
+use crate::parsers::{ply, ply::PlyParser, sogs::SogsV2Parser};
 use crate::splats::Splats;
 use crate::splats_parser::SplatsParser;
 
@@ -80,6 +80,23 @@ impl SplatsBuffers {
 #[wasm_bindgen]
 pub fn parse_splat_sogs_v2(bytes: &[u8]) -> Result<SplatsBuffers, JsValue> {
     let inner = SogsV2Parser::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    Ok(SplatsBuffers { inner })
+}
+
+#[wasm_bindgen]
+pub fn parse_splat_ply(bytes: &[u8]) -> Result<SplatsBuffers, JsValue> {
+    let inner = PlyParser::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    Ok(SplatsBuffers { inner })
+}
+
+#[wasm_bindgen]
+pub fn parse_splat_ply_with_opts(
+    bytes: &[u8],
+    assume_log_scale: bool,
+    assume_logit_opacity: bool,
+) -> Result<SplatsBuffers, JsValue> {
+    let inner = ply::parse_splat_ply_core_with_opts(bytes, assume_log_scale, assume_logit_opacity)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
     Ok(SplatsBuffers { inner })
 }
 
