@@ -68,7 +68,9 @@ async function parseBytes(bytes: Uint8Array, format: "auto" | "ply" | "sog"): Pr
   return chunk;
 }
 
-self.onmessage = async (event: MessageEvent<ParseRequest>) => {
+const workerScope = self as unknown as DedicatedWorkerGlobalScope;
+
+workerScope.onmessage = async (event: MessageEvent<ParseRequest>) => {
   const { payload } = event.data;
   const { jobId, fileIndex, bytes, format } = payload;
 
@@ -91,7 +93,7 @@ self.onmessage = async (event: MessageEvent<ParseRequest>) => {
       type: "result",
       payload: { jobId, fileIndex, chunk },
     };
-    self.postMessage(response, transfer);
+    workerScope.postMessage(response, transfer);
   } catch (err) {
     const response: ParseResponse = {
       type: "error",
@@ -101,6 +103,6 @@ self.onmessage = async (event: MessageEvent<ParseRequest>) => {
         error: err instanceof Error ? err.message : String(err),
       },
     };
-    self.postMessage(response);
+    workerScope.postMessage(response);
   }
 };
