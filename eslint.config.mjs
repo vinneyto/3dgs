@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "tmp/**",
     // Generated WASM bindings (wasm-pack output):
     "app/_shared/wasm/pkg/**",
+    // Local scratch code used for format reverse-engineering:
+    "external/**",
   ]),
   // These demos intentionally mutate Three/WebGPU objects (uniforms, BufferAttributes, etc).
   // The immutability rule is not a good fit here.

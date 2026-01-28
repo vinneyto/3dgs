@@ -61,6 +61,10 @@ h1 {
 .sidebar {
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   padding: 16px;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .sidebarHeader {
@@ -69,10 +73,40 @@ h1 {
   margin-bottom: 12px;
 }
 
+.sidebarSearch {
+  flex: 0 0 auto;
+}
+
+.sidebarSearchInput {
+  width: 100%;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  padding: 0 10px;
+}
+
+.sidebarSearchInput:focus {
+  outline: 2px solid rgba(100, 108, 255, 0.45);
+  outline-offset: 2px;
+}
+
 .nav {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.navScroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 6px; /* keep scrollbar off text */
+}
+
+.navEmpty {
+  opacity: 0.7;
+  padding: 10px 10px;
 }
 
 .navLink {

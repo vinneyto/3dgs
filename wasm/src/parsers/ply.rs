@@ -1,21 +1,17 @@
+use crate::splats::Splats;
+use crate::splats_parser::{ParseError, SplatsParser};
+
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
-pub struct SplatPlyBuffersCore {
-    pub count: u32,
-    pub format: PlyFormat,
-    pub center: Box<[f32]>,     // 3N
-    pub covariance: Box<[f32]>, // 6N
-    pub rgba: Box<[u32]>,       // N
-    pub sh_coeffs_l1: Box<[f32]>, // 9 * N (3 coeffs * RGB)
-    pub sh_coeffs_l2_packed: Box<[u32]>, // 10 * N (packed i16 vec3 -> 2 u32)
-    pub sh_coeffs_l2_scale: f32,
-    pub sh_coeffs_l3_packed: Box<[u32]>, // 14 * N (packed i16 vec3 -> 2 u32)
-    pub sh_coeffs_l3_scale: f32,
-    pub sh_degree: u32,
-    pub bbox_min: [f32; 3],
-    pub bbox_max: [f32; 3],
+pub struct PlyParser;
+
+impl SplatsParser for PlyParser {
+    fn parse(bytes: &[u8]) -> Result<Splats, ParseError> {
+        parse_splat_ply_core(bytes).map_err(|e| ParseError::msg(e.to_string()))
+    }
 }
+
+pub type SplatPlyBuffersCore = Splats;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlyFormat {
@@ -231,10 +227,10 @@ fn parse_header(bytes: &[u8]) -> Result<ParsedHeader, PlyError> {
                     let name = it
                         .next()
                         .ok_or_else(|| PlyError::msg("PLY: bad list property"))?;
-                    let count_ty =
-                        PlyScalarType::parse(count_t).ok_or_else(|| PlyError::msg("PLY: bad list type"))?;
-                    let item_ty =
-                        PlyScalarType::parse(item_t).ok_or_else(|| PlyError::msg("PLY: bad list type"))?;
+                    let count_ty = PlyScalarType::parse(count_t)
+                        .ok_or_else(|| PlyError::msg("PLY: bad list type"))?;
+                    let item_ty = PlyScalarType::parse(item_t)
+                        .ok_or_else(|| PlyError::msg("PLY: bad list type"))?;
                     cur.properties.push(PlyProperty::List {
                         name: name.to_string(),
                         count_ty,
@@ -299,7 +295,12 @@ fn normalize_quat(x: f32, y: f32, z: f32, w: f32) -> (f32, f32, f32, f32) {
     (x * inv, y * inv, z * inv, w * inv)
 }
 
-fn quat_to_mat3_cols(x: f32, y: f32, z: f32, w: f32) -> ([f32; 3], [f32; 3], [f32; 3]) {
+fn quat_to_mat3_cols(
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+) -> ([f32; 3], [f32; 3], [f32; 3]) {
     let xx = x * x;
     let yy = y * y;
     let zz = z * z;
@@ -325,7 +326,15 @@ fn quat_to_mat3_cols(x: f32, y: f32, z: f32, w: f32) -> ([f32; 3], [f32; 3], [f3
     ([r00, r10, r20], [r01, r11, r21], [r02, r12, r22])
 }
 
-fn covariance_from_quat_scale(qx: f32, qy: f32, qz: f32, qw: f32, sx: f32, sy: f32, sz: f32) -> [f32; 6] {
+fn covariance_from_quat_scale(
+    qx: f32,
+    qy: f32,
+    qz: f32,
+    qw: f32,
+    sx: f32,
+    sy: f32,
+    sz: f32,
+) -> [f32; 6] {
     let (x, y, z, w) = normalize_quat(qx, qy, qz, qw);
     let (c0, c1, c2) = quat_to_mat3_cols(x, y, z, w);
 
@@ -425,12 +434,7 @@ fn collect_sh_rest_props(el: &PlyElement) -> Vec<(usize, PlyScalarType)> {
     rest.into_iter().map(|(_, i, ty)| (i, ty)).collect()
 }
 
-fn split_sh_rest_coeffs(
-    sh_rest: &[f32],
-    sh1: &mut Vec<f32>,
-    sh2: &mut Vec<f32>,
-    sh3: &mut Vec<f32>,
-) {
+fn split_sh_rest_coeffs(sh_rest: &[f32], sh1: &mut Vec<f32>, sh2: &mut Vec<f32>, sh3: &mut Vec<f32>) {
     if sh_rest.is_empty() {
         return;
     }
@@ -476,7 +480,6 @@ fn pack_sh_coeffs_i16(sh: &[f32]) -> (Vec<u32>, f32) {
     }
     (out, scale)
 }
-
 
 pub fn parse_splat_ply_core(bytes: &[u8]) -> Result<SplatPlyBuffersCore, PlyError> {
     parse_splat_ply_core_with_opts(bytes, true, true)
@@ -534,17 +537,16 @@ pub fn parse_splat_ply_core_with_opts(
     let qz_f = pick_name(&pmap, &["qz"]);
     let qw_f = pick_name(&pmap, &["qw"]);
 
-    let (quat_layout, (ir0, tr0), (ir1, tr1), (ir2, tr2), (ir3, tr3)) = if let (Some(a), Some(b), Some(c), Some(d)) =
-        (rot0, rot1, rot2, rot3)
-    {
-        (QuatLayout::Wxyz, a, b, c, d)
-    } else if let (Some(a), Some(b), Some(c), Some(d)) = (qx_f, qy_f, qz_f, qw_f) {
-        (QuatLayout::Xyzw, a, b, c, d)
-    } else {
-        return Err(PlyError::msg(
-            "PLY: missing quaternion fields. Expected either rot_0..rot_3 (wxyz) or qx,qy,qz,qw (xyzw)",
-        ));
-    };
+    let (quat_layout, (ir0, tr0), (ir1, tr1), (ir2, tr2), (ir3, tr3)) =
+        if let (Some(a), Some(b), Some(c), Some(d)) = (rot0, rot1, rot2, rot3) {
+            (QuatLayout::Wxyz, a, b, c, d)
+        } else if let (Some(a), Some(b), Some(c), Some(d)) = (qx_f, qy_f, qz_f, qw_f) {
+            (QuatLayout::Xyzw, a, b, c, d)
+        } else {
+            return Err(PlyError::msg(
+                "PLY: missing quaternion fields. Expected either rot_0..rot_3 (wxyz) or qx,qy,qz,qw (xyzw)",
+            ));
+        };
 
     let (iop, top) = pick_name(&pmap, &["opacity", "alpha", "opac"])
         .ok_or_else(|| PlyError::msg("PLY: missing opacity in vertex"))?;
@@ -665,8 +667,7 @@ pub fn parse_splat_ply_core_with_opts(
                 let mut r = 255u32;
                 let mut g = 255u32;
                 let mut b = 255u32;
-                if let (Some((ir, tr)), Some((ig, tg)), Some((ib, tb))) =
-                    (color_r, color_g, color_b)
+                if let (Some((ir, tr)), Some((ig, tg)), Some((ib, tb))) = (color_r, color_g, color_b)
                 {
                     let rv = read(ir, tr)? as f32;
                     let gv = read(ig, tg)? as f32;
@@ -709,17 +710,11 @@ pub fn parse_splat_ply_core_with_opts(
         }
         PlyFormat::Ascii => {
             let data = &bytes[header.data_offset..];
-            let text = core::str::from_utf8(data)
-                .map_err(|_| PlyError::msg("PLY ASCII: data is not valid utf-8"))?;
+            let text =
+                core::str::from_utf8(data).map_err(|_| PlyError::msg("PLY ASCII: data is not valid utf-8"))?;
             let lines: Vec<&str> = match header.newline {
-                Newline::Lf => text
-                    .split('\n')
-                    .filter(|l| !l.trim().is_empty())
-                    .collect(),
-                Newline::CrLf => text
-                    .split("\r\n")
-                    .filter(|l| !l.trim().is_empty())
-                    .collect(),
+                Newline::Lf => text.split('\n').filter(|l| !l.trim().is_empty()).collect(),
+                Newline::CrLf => text.split("\r\n").filter(|l| !l.trim().is_empty()).collect(),
             };
             if lines.len() < count {
                 return Err(PlyError::msg("PLY ASCII: not enough vertex lines"));
@@ -743,12 +738,18 @@ pub fn parse_splat_ply_core_with_opts(
                 None
             };
 
-            let cx_c = col(&["x", "pos_x", "position_x"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing x"))?;
-            let cy_c = col(&["y", "pos_y", "position_y"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing y"))?;
-            let cz_c = col(&["z", "pos_z", "position_z"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing z"))?;
-            let s0_c = col(&["scale_0", "sx", "scale_x", "scalex"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_0"))?;
-            let s1_c = col(&["scale_1", "sy", "scale_y", "scaley"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_1"))?;
-            let s2_c = col(&["scale_2", "sz", "scale_z", "scalez"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_2"))?;
+            let cx_c =
+                col(&["x", "pos_x", "position_x"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing x"))?;
+            let cy_c =
+                col(&["y", "pos_y", "position_y"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing y"))?;
+            let cz_c =
+                col(&["z", "pos_z", "position_z"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing z"))?;
+            let s0_c = col(&["scale_0", "sx", "scale_x", "scalex"])
+                .ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_0"))?;
+            let s1_c = col(&["scale_1", "sy", "scale_y", "scaley"])
+                .ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_1"))?;
+            let s2_c = col(&["scale_2", "sz", "scale_z", "scalez"])
+                .ok_or_else(|| PlyError::msg("PLY ASCII: missing scale_2"))?;
             let r0 = col(&["rot_0"]);
             let r1 = col(&["rot_1"]);
             let r2 = col(&["rot_2"]);
@@ -758,18 +759,18 @@ pub fn parse_splat_ply_core_with_opts(
             let qz = col(&["qz"]);
             let qw = col(&["qw"]);
 
-            let (quat_layout, r0_c, r1_c, r2_c, r3_c) = if let (Some(a), Some(b), Some(c), Some(d)) =
-                (r0, r1, r2, r3)
-            {
-                (QuatLayout::Wxyz, a, b, c, d)
-            } else if let (Some(a), Some(b), Some(c), Some(d)) = (qx, qy, qz, qw) {
-                (QuatLayout::Xyzw, a, b, c, d)
-            } else {
-                return Err(PlyError::msg(
-                    "PLY ASCII: missing quaternion fields. Expected either rot_0..rot_3 (wxyz) or qx,qy,qz,qw (xyzw)",
-                ));
-            };
-            let op_c = col(&["opacity", "alpha", "opac"]).ok_or_else(|| PlyError::msg("PLY ASCII: missing opacity"))?;
+            let (quat_layout, r0_c, r1_c, r2_c, r3_c) =
+                if let (Some(a), Some(b), Some(c), Some(d)) = (r0, r1, r2, r3) {
+                    (QuatLayout::Wxyz, a, b, c, d)
+                } else if let (Some(a), Some(b), Some(c), Some(d)) = (qx, qy, qz, qw) {
+                    (QuatLayout::Xyzw, a, b, c, d)
+                } else {
+                    return Err(PlyError::msg(
+                        "PLY ASCII: missing quaternion fields. Expected either rot_0..rot_3 (wxyz) or qx,qy,qz,qw (xyzw)",
+                    ));
+                };
+            let op_c = col(&["opacity", "alpha", "opac"])
+                .ok_or_else(|| PlyError::msg("PLY ASCII: missing opacity"))?;
 
             let r_c = col(&["red", "r"]);
             let g_c = col(&["green", "g"]);
@@ -882,7 +883,7 @@ pub fn parse_splat_ply_core_with_opts(
 
     Ok(SplatPlyBuffersCore {
         count: count as u32,
-        format: header.format,
+        format: header.format.as_str().to_string(),
         center: center.into_boxed_slice(),
         covariance: covariance.into_boxed_slice(),
         rgba: rgba.into_boxed_slice(),
@@ -896,5 +897,4 @@ pub fn parse_splat_ply_core_with_opts(
         bbox_max,
     })
 }
-
 

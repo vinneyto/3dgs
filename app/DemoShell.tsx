@@ -23,6 +23,8 @@ const demos = [
   { href: "/ref-splats", label: "Ref splats (PLY)" },
   { href: "/prefix-sum", label: "Prefix sum (CPU / TS)" },
   { href: "/rust-wasm", label: "PLY parse (Rust WASM)" },
+  { href: "/rust-sogs-v2", label: "SOGS v2 parse (Rust WASM)" },
+  { href: "/room-sog", label: "Room SOG render (Rust WASM)" },
   { href: "/rust-bitops", label: "Rust bitwise ops" },
   { href: "/sh-sphere", label: "SH sphere (widget)" },
 ];
@@ -61,27 +63,52 @@ function MobileShell({
 function DesktopShell({
   children,
   pathname,
+  query,
+  onQueryChange,
 }: {
   children: ReactNode;
   pathname: string;
+  query: string;
+  onQueryChange: (next: string) => void;
 }) {
+  const q = query.trim().toLowerCase();
+  const filteredDemos = q
+    ? demos.filter(({ href, label }) => {
+        const hay = `${label} ${href}`.toLowerCase();
+        return hay.includes(q);
+      })
+    : demos;
+
   return (
     <div className="appShell appShellDesktop">
       <aside className="sidebar">
         <div className="sidebarHeader">3DGS examples</div>
-        <nav className="nav">
-          {demos.map(({ href, label }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`navLink${isActive ? " active" : ""}`}
-              >
-                {label}
-              </Link>
-            );
-          })}
+        <div className="sidebarSearch">
+          <input
+            className="sidebarSearchInput"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Search demos…"
+            aria-label="Search demos"
+          />
+        </div>
+        <nav className="nav navScroll" aria-label="Demo list">
+          {filteredDemos.length ? (
+            filteredDemos.map(({ href, label }) => {
+              const isActive = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`navLink${isActive ? " active" : ""}`}
+                >
+                  {label}
+                </Link>
+              );
+            })
+          ) : (
+            <div className="navEmpty">No demos match “{query.trim()}”.</div>
+          )}
         </nav>
       </aside>
       <main className="content">{children}</main>
@@ -93,6 +120,7 @@ export function DemoShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [hydrated, setHydrated] = useState(false);
   const isMobile = useIsMobile(820);
+  const [query, setQuery] = useState("");
 
   // Avoid hydration mismatch: server cannot know viewport width, so defer shell
   // selection to the client after hydration.
@@ -101,6 +129,11 @@ export function DemoShell({ children }: { children: ReactNode }) {
     return () => window.cancelAnimationFrame(raf);
   }, []);
 
+  // When switching demos (route changes), keep sidebar search UX clean.
+  useEffect(() => {
+    setQuery("");
+  }, [pathname]);
+
   if (!hydrated) {
     return <div className="appBoot" />;
   }
@@ -108,6 +141,8 @@ export function DemoShell({ children }: { children: ReactNode }) {
   return isMobile ? (
     <MobileShell pathname={pathname}>{children}</MobileShell>
   ) : (
-    <DesktopShell pathname={pathname}>{children}</DesktopShell>
+    <DesktopShell pathname={pathname} query={query} onQueryChange={setQuery}>
+      {children}
+    </DesktopShell>
   );
 }

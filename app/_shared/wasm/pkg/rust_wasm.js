@@ -68,89 +68,89 @@ function decodeText(ptr, len) {
 
 let WASM_VECTOR_LEN = 0;
 
-const SplatPlyBuffersFinalization = (typeof FinalizationRegistry === 'undefined')
+const SplatsBuffersFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_splatplybuffers_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_splatsbuffers_free(ptr >>> 0, 1));
 
-export class SplatPlyBuffers {
+export class SplatsBuffers {
     static __wrap(ptr) {
         ptr = ptr >>> 0;
-        const obj = Object.create(SplatPlyBuffers.prototype);
+        const obj = Object.create(SplatsBuffers.prototype);
         obj.__wbg_ptr = ptr;
-        SplatPlyBuffersFinalization.register(obj, obj.__wbg_ptr, obj);
+        SplatsBuffersFinalization.register(obj, obj.__wbg_ptr, obj);
         return obj;
     }
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
         this.__wbg_ptr = 0;
-        SplatPlyBuffersFinalization.unregister(this);
+        SplatsBuffersFinalization.unregister(this);
         return ptr;
     }
     free() {
         const ptr = this.__destroy_into_raw();
-        wasm.__wbg_splatplybuffers_free(ptr, 0);
+        wasm.__wbg_splatsbuffers_free(ptr, 0);
     }
     /**
      * @returns {Float32Array}
      */
     get covariance() {
-        const ret = wasm.splatplybuffers_covariance(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_covariance(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {Float32Array}
      */
     get shCoeffsL1() {
-        const ret = wasm.splatplybuffers_shCoeffsL1(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_shCoeffsL1(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {number}
      */
     get shCoeffsL2Scale() {
-        const ret = wasm.splatplybuffers_shCoeffsL2Scale(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_shCoeffsL2Scale(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {number}
      */
     get shCoeffsL3Scale() {
-        const ret = wasm.splatplybuffers_shCoeffsL3Scale(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_shCoeffsL3Scale(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {Uint32Array}
      */
     get shCoeffsL2Packed() {
-        const ret = wasm.splatplybuffers_shCoeffsL2Packed(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_shCoeffsL2Packed(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {Uint32Array}
      */
     get shCoeffsL3Packed() {
-        const ret = wasm.splatplybuffers_shCoeffsL3Packed(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_shCoeffsL3Packed(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {Uint32Array}
      */
     get rgba() {
-        const ret = wasm.splatplybuffers_rgba(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_rgba(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {number}
      */
     get count() {
-        const ret = wasm.splatplybuffers_count(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_count(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
      * @returns {Float32Array}
      */
     get center() {
-        const ret = wasm.splatplybuffers_center(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_center(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -160,7 +160,7 @@ export class SplatPlyBuffers {
         let deferred1_0;
         let deferred1_1;
         try {
-            const ret = wasm.splatplybuffers_format(this.__wbg_ptr);
+            const ret = wasm.splatsbuffers_format(this.__wbg_ptr);
             deferred1_0 = ret[0];
             deferred1_1 = ret[1];
             return getStringFromWasm0(ret[0], ret[1]);
@@ -172,25 +172,25 @@ export class SplatPlyBuffers {
      * @returns {Float32Array}
      */
     get bboxMax() {
-        const ret = wasm.splatplybuffers_bboxMax(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_bboxMax(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {Float32Array}
      */
     get bboxMin() {
-        const ret = wasm.splatplybuffers_bboxMin(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_bboxMin(this.__wbg_ptr);
         return ret;
     }
     /**
      * @returns {number}
      */
     get shDegree() {
-        const ret = wasm.splatplybuffers_shDegree(this.__wbg_ptr);
+        const ret = wasm.splatsbuffers_shDegree(this.__wbg_ptr);
         return ret >>> 0;
     }
 }
-if (Symbol.dispose) SplatPlyBuffers.prototype[Symbol.dispose] = SplatPlyBuffers.prototype.free;
+if (Symbol.dispose) SplatsBuffers.prototype[Symbol.dispose] = SplatsBuffers.prototype.free;
 
 /**
  * @param {number} a
@@ -214,7 +214,7 @@ export function is_bit_set_u32(a, k) {
 
 /**
  * @param {Uint8Array} bytes
- * @returns {SplatPlyBuffers}
+ * @returns {SplatsBuffers}
  */
 export function parse_splat_ply(bytes) {
     const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
@@ -223,14 +223,14 @@ export function parse_splat_ply(bytes) {
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
-    return SplatPlyBuffers.__wrap(ret[0]);
+    return SplatsBuffers.__wrap(ret[0]);
 }
 
 /**
  * @param {Uint8Array} bytes
  * @param {boolean} assume_log_scale
  * @param {boolean} assume_logit_opacity
- * @returns {SplatPlyBuffers}
+ * @returns {SplatsBuffers}
  */
 export function parse_splat_ply_with_opts(bytes, assume_log_scale, assume_logit_opacity) {
     const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
@@ -239,7 +239,38 @@ export function parse_splat_ply_with_opts(bytes, assume_log_scale, assume_logit_
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
-    return SplatPlyBuffers.__wrap(ret[0]);
+    return SplatsBuffers.__wrap(ret[0]);
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {SplatsBuffers}
+ */
+export function parse_splat_sogs_v2(bytes) {
+    const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.parse_splat_sogs_v2(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return SplatsBuffers.__wrap(ret[0]);
+}
+
+/**
+ * Best-effort format detection:
+ * - `ply` prefix => PLY
+ * - ZIP `PK\x03\x04` => SOGS v2
+ * @param {Uint8Array} bytes
+ * @returns {SplatsBuffers}
+ */
+export function parse_splats_auto(bytes) {
+    const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.parse_splats_auto(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return SplatsBuffers.__wrap(ret[0]);
 }
 
 /**

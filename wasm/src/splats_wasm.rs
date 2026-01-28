@@ -1,14 +1,16 @@
 use wasm_bindgen::prelude::*;
 
-use crate::ply_splat_core::{parse_splat_ply_core, parse_splat_ply_core_with_opts, SplatPlyBuffersCore};
+use crate::parsers::{ply, ply::PlyParser, sogs::SogsV2Parser};
+use crate::splats::Splats;
+use crate::splats_parser::SplatsParser;
 
 #[wasm_bindgen]
-pub struct SplatPlyBuffers {
-    inner: SplatPlyBuffersCore,
+pub struct SplatsBuffers {
+    inner: Splats,
 }
 
 #[wasm_bindgen]
-impl SplatPlyBuffers {
+impl SplatsBuffers {
     #[wasm_bindgen(getter)]
     pub fn count(&self) -> u32 {
         self.inner.count
@@ -16,7 +18,7 @@ impl SplatPlyBuffers {
 
     #[wasm_bindgen(getter)]
     pub fn format(&self) -> String {
-        self.inner.format.as_str().to_string()
+        self.inner.format.clone()
     }
 
     #[wasm_bindgen(getter)]
@@ -76,9 +78,15 @@ impl SplatPlyBuffers {
 }
 
 #[wasm_bindgen]
-pub fn parse_splat_ply(bytes: &[u8]) -> Result<SplatPlyBuffers, JsValue> {
-    let inner = parse_splat_ply_core(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
-    Ok(SplatPlyBuffers { inner })
+pub fn parse_splat_sogs_v2(bytes: &[u8]) -> Result<SplatsBuffers, JsValue> {
+    let inner = SogsV2Parser::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    Ok(SplatsBuffers { inner })
+}
+
+#[wasm_bindgen]
+pub fn parse_splat_ply(bytes: &[u8]) -> Result<SplatsBuffers, JsValue> {
+    let inner = PlyParser::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    Ok(SplatsBuffers { inner })
 }
 
 #[wasm_bindgen]
@@ -86,10 +94,27 @@ pub fn parse_splat_ply_with_opts(
     bytes: &[u8],
     assume_log_scale: bool,
     assume_logit_opacity: bool,
-) -> Result<SplatPlyBuffers, JsValue> {
-    let inner = parse_splat_ply_core_with_opts(bytes, assume_log_scale, assume_logit_opacity)
+) -> Result<SplatsBuffers, JsValue> {
+    let inner = ply::parse_splat_ply_core_with_opts(bytes, assume_log_scale, assume_logit_opacity)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    Ok(SplatPlyBuffers { inner })
+    Ok(SplatsBuffers { inner })
 }
 
+/// Best-effort format detection:
+/// - `ply` prefix => PLY
+/// - ZIP `PK\x03\x04` => SOGS v2
+#[wasm_bindgen]
+pub fn parse_splats_auto(bytes: &[u8]) -> Result<SplatsBuffers, JsValue> {
+    let inner = if bytes.len() >= 3 && &bytes[0..3] == b"ply" {
+        PlyParser::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?
+    } else if bytes.len() >= 4 && &bytes[0..4] == b"PK\x03\x04" {
+        SogsV2Parser::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?
+    } else {
+        // Fallback: try PLY then SOGS v2.
+        PlyParser::parse(bytes)
+            .or_else(|_| SogsV2Parser::parse(bytes))
+            .map_err(|e| JsValue::from_str(&e.to_string()))?
+    };
+    Ok(SplatsBuffers { inner })
+}
 

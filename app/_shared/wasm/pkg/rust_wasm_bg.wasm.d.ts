@@ -1,22 +1,24 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
-export const __wbg_splatplybuffers_free: (a: number, b: number) => void;
+export const __wbg_splatsbuffers_free: (a: number, b: number) => void;
 export const parse_splat_ply: (a: number, b: number) => [number, number, number];
 export const parse_splat_ply_with_opts: (a: number, b: number, c: number, d: number) => [number, number, number];
-export const splatplybuffers_bboxMax: (a: number) => any;
-export const splatplybuffers_bboxMin: (a: number) => any;
-export const splatplybuffers_center: (a: number) => any;
-export const splatplybuffers_count: (a: number) => number;
-export const splatplybuffers_covariance: (a: number) => any;
-export const splatplybuffers_format: (a: number) => [number, number];
-export const splatplybuffers_rgba: (a: number) => any;
-export const splatplybuffers_shCoeffsL1: (a: number) => any;
-export const splatplybuffers_shCoeffsL2Packed: (a: number) => any;
-export const splatplybuffers_shCoeffsL2Scale: (a: number) => number;
-export const splatplybuffers_shCoeffsL3Packed: (a: number) => any;
-export const splatplybuffers_shCoeffsL3Scale: (a: number) => number;
-export const splatplybuffers_shDegree: (a: number) => number;
+export const parse_splat_sogs_v2: (a: number, b: number) => [number, number, number];
+export const parse_splats_auto: (a: number, b: number) => [number, number, number];
+export const splatsbuffers_bboxMax: (a: number) => any;
+export const splatsbuffers_bboxMin: (a: number) => any;
+export const splatsbuffers_center: (a: number) => any;
+export const splatsbuffers_count: (a: number) => number;
+export const splatsbuffers_covariance: (a: number) => any;
+export const splatsbuffers_format: (a: number) => [number, number];
+export const splatsbuffers_rgba: (a: number) => any;
+export const splatsbuffers_shCoeffsL1: (a: number) => any;
+export const splatsbuffers_shCoeffsL2Packed: (a: number) => any;
+export const splatsbuffers_shCoeffsL2Scale: (a: number) => number;
+export const splatsbuffers_shCoeffsL3Packed: (a: number) => any;
+export const splatsbuffers_shCoeffsL3Scale: (a: number) => number;
+export const splatsbuffers_shDegree: (a: number) => number;
 export const hamming_distance_u32: (a: number, b: number) => number;
 export const is_bit_set_u32: (a: number, b: number) => number;
 export const powers_of_two_u32: (a: number) => any;
