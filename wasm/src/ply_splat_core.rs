@@ -1,21 +1,8 @@
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
-pub struct SplatPlyBuffersCore {
-    pub count: u32,
-    pub format: PlyFormat,
-    pub center: Box<[f32]>,     // 3N
-    pub covariance: Box<[f32]>, // 6N
-    pub rgba: Box<[u32]>,       // N
-    pub sh_coeffs_l1: Box<[f32]>, // 9 * N (3 coeffs * RGB)
-    pub sh_coeffs_l2_packed: Box<[u32]>, // 10 * N (packed i16 vec3 -> 2 u32)
-    pub sh_coeffs_l2_scale: f32,
-    pub sh_coeffs_l3_packed: Box<[u32]>, // 14 * N (packed i16 vec3 -> 2 u32)
-    pub sh_coeffs_l3_scale: f32,
-    pub sh_degree: u32,
-    pub bbox_min: [f32; 3],
-    pub bbox_max: [f32; 3],
-}
+use crate::splats::Splats;
+
+pub type SplatPlyBuffersCore = Splats;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlyFormat {
@@ -882,7 +869,7 @@ pub fn parse_splat_ply_core_with_opts(
 
     Ok(SplatPlyBuffersCore {
         count: count as u32,
-        format: header.format,
+        format: header.format.as_str().to_string(),
         center: center.into_boxed_slice(),
         covariance: covariance.into_boxed_slice(),
         rgba: rgba.into_boxed_slice(),
