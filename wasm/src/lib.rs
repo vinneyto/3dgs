@@ -15,13 +15,13 @@ pub use ply_splat_core::{
     parse_splat_ply_core, parse_splat_ply_core_with_opts, PlyError, PlyFormat, SplatPlyBuffersCore,
 };
 
-pub use lod_manager_core::{LodChunkManager, LodManagerError};
+pub use lod_manager_core::{LodManagerError, LodTileQuery};
 
 #[cfg(target_arch = "wasm32")]
 pub use ply_splat_wasm::{parse_splat_ply, parse_splat_ply_with_opts, SplatPlyBuffers};
 
 #[cfg(target_arch = "wasm32")]
-pub use lod_manager_wasm::LodChunkManagerWasm;
+pub use lod_manager_wasm::LodTileQueryWasm;
 
 pub use bitops_core::shift_right_report_u32 as shift_right_report_u32_core;
 pub use bitops_core::is_bit_set_u32 as is_bit_set_u32_core;

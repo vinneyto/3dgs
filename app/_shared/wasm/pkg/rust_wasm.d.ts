@@ -1,7 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 
-export class LodChunkManager {
+export class LodTileQuery {
   private constructor();
   free(): void;
   [Symbol.dispose](): void;
@@ -44,6 +44,9 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
+  readonly __wbg_lodtilequery_free: (a: number, b: number) => void;
+  readonly lodtilequerywasm_new: (a: number, b: number, c: number) => [number, number, number];
+  readonly lodtilequerywasm_query_view_proj: (a: number, b: number, c: number) => [number, number, number];
   readonly __wbg_splatplybuffers_free: (a: number, b: number) => void;
   readonly hamming_distance_u32: (a: number, b: number) => number;
   readonly is_bit_set_u32: (a: number, b: number) => number;
@@ -65,18 +68,11 @@ export interface InitOutput {
   readonly splatplybuffers_shCoeffsL3Packed: (a: number) => any;
   readonly splatplybuffers_shCoeffsL3Scale: (a: number) => number;
   readonly splatplybuffers_shDegree: (a: number) => number;
-  readonly __wbg_lodchunkmanager_free: (a: number, b: number) => void;
-  readonly lodchunkmanagerwasm_drain_requests: (a: number) => any;
-  readonly lodchunkmanagerwasm_file_state: (a: number, b: number) => number;
-  readonly lodchunkmanagerwasm_mark_loaded: (a: number, b: number) => void;
-  readonly lodchunkmanagerwasm_mark_unrequested: (a: number, b: number) => void;
-  readonly lodchunkmanagerwasm_new: (a: number, b: number, c: number, d: number) => [number, number, number];
-  readonly lodchunkmanagerwasm_update_view_proj: (a: number, b: number, c: number) => [number, number];
   readonly __wbindgen_externrefs: WebAssembly.Table;
-  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __externref_table_dealloc: (a: number) => void;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_start: () => void;
 }
 

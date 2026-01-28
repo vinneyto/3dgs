@@ -1,6 +1,9 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_lodtilequery_free: (a: number, b: number) => void;
+export const lodtilequerywasm_new: (a: number, b: number, c: number) => [number, number, number];
+export const lodtilequerywasm_query_view_proj: (a: number, b: number, c: number) => [number, number, number];
 export const __wbg_splatplybuffers_free: (a: number, b: number) => void;
 export const hamming_distance_u32: (a: number, b: number) => number;
 export const is_bit_set_u32: (a: number, b: number) => number;
@@ -22,16 +25,9 @@ export const splatplybuffers_shCoeffsL2Scale: (a: number) => number;
 export const splatplybuffers_shCoeffsL3Packed: (a: number) => any;
 export const splatplybuffers_shCoeffsL3Scale: (a: number) => number;
 export const splatplybuffers_shDegree: (a: number) => number;
-export const __wbg_lodchunkmanager_free: (a: number, b: number) => void;
-export const lodchunkmanagerwasm_drain_requests: (a: number) => any;
-export const lodchunkmanagerwasm_file_state: (a: number, b: number) => number;
-export const lodchunkmanagerwasm_mark_loaded: (a: number, b: number) => void;
-export const lodchunkmanagerwasm_mark_unrequested: (a: number, b: number) => void;
-export const lodchunkmanagerwasm_new: (a: number, b: number, c: number, d: number) => [number, number, number];
-export const lodchunkmanagerwasm_update_view_proj: (a: number, b: number, c: number) => [number, number];
 export const __wbindgen_externrefs: WebAssembly.Table;
-export const __wbindgen_free: (a: number, b: number, c: number) => void;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __externref_table_dealloc: (a: number) => void;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
 export const __wbindgen_start: () => void;

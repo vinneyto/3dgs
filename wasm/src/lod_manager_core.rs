@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct LodNode {
+    pub id: u32,
     pub min: [f32; 3],
     pub max: [f32; 3],
-    pub file_index: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -84,76 +84,30 @@ impl Frustum {
 }
 
 #[derive(Clone, Debug)]
-pub struct LodChunkManager {
+pub struct LodTileQuery {
     nodes: Vec<LodNode>,
-    file_states: Vec<u8>,
-    pending: Vec<u32>,
-    max_requests_per_tick: usize,
 }
 
-impl LodChunkManager {
-    pub fn new(nodes: Vec<LodNode>, file_count: usize, max_requests_per_tick: usize) -> Self {
-        Self {
-            nodes,
-            file_states: vec![0u8; file_count],
-            pending: Vec::new(),
-            max_requests_per_tick: max_requests_per_tick.max(1),
-        }
+impl LodTileQuery {
+    pub fn new(nodes: Vec<LodNode>) -> Self {
+        Self { nodes }
     }
 
-    pub fn update_view_proj(&mut self, view_proj: &[f32]) -> Result<(), LodManagerError> {
+    pub fn query_view_proj(&self, view_proj: &[f32]) -> Result<Vec<u32>, LodManagerError> {
         if view_proj.len() != 16 {
             return Err(LodManagerError::InvalidMatrix);
         }
         let mut m = [0.0f32; 16];
         m.copy_from_slice(view_proj);
         let frustum = Frustum::from_view_proj(&m);
-
-        let mut emitted = 0usize;
+        let mut result = Vec::new();
         for node in &self.nodes {
-            if emitted >= self.max_requests_per_tick {
-                break;
+            if frustum.intersects_aabb(&node.min, &node.max) {
+                result.push(node.id);
             }
-            if !frustum.intersects_aabb(&node.min, &node.max) {
-                continue;
-            }
-            let state = self.file_states[node.file_index as usize];
-            if state != 0 {
-                continue;
-            }
-            self.file_states[node.file_index as usize] = 1;
-            self.pending.push(node.file_index);
-            emitted += 1;
         }
-        Ok(())
+        Ok(result)
     }
-
-    pub fn drain_requests(&mut self) -> Vec<u32> {
-        std::mem::take(&mut self.pending)
-    }
-
-    pub fn mark_loaded(&mut self, file_index: u32) {
-        if let Some(state) = self.file_states.get_mut(file_index as usize) {
-            *state = 2;
-        }
-    }
-
-    pub fn mark_unrequested(&mut self, file_index: u32) {
-        if let Some(state) = self.file_states.get_mut(file_index as usize) {
-            *state = 0;
-        }
-    }
-
-    pub fn file_state(&self, file_index: u32) -> u8 {
-        self.file_states.get(file_index as usize).copied().unwrap_or(0)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct LodMeta {
-    pub lod_levels: usize,
-    pub filenames: Vec<String>,
-    pub tree: LodMetaNode,
 }
 
 #[derive(Clone, Debug)]
@@ -176,19 +130,21 @@ pub struct LodBound {
     pub max: [f32; 3],
 }
 
-pub fn flatten_lod_nodes(
+pub fn collect_lod_nodes(
     tree: &LodMetaNode,
     lod_index: usize,
     out: &mut Vec<LodNode>,
+    next_id: &mut u32,
 ) {
     if let Some(lods) = &tree.lods {
         if let Some(lod) = lods.get(&lod_index.to_string()) {
-            if lod.file != u32::MAX && lod.count > 0 {
+            if lod.count > 0 {
                 out.push(LodNode {
+                    id: *next_id,
                     min: tree.bound.min,
                     max: tree.bound.max,
-                    file_index: lod.file,
                 });
+                *next_id += 1;
             }
         }
         return;
@@ -196,7 +152,7 @@ pub fn flatten_lod_nodes(
 
     if let Some(children) = &tree.children {
         for child in children {
-            flatten_lod_nodes(child, lod_index, out);
+            collect_lod_nodes(child, lod_index, out, next_id);
         }
     }
 }

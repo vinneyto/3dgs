@@ -3,14 +3,13 @@ use std::collections::HashMap;
 use js_sys::Uint32Array;
 use wasm_bindgen::prelude::*;
 
-use crate::lod_manager_core::{flatten_lod_nodes, LodBound, LodChunkManager, LodMetaLod, LodMetaNode};
+use crate::lod_manager_core::{collect_lod_nodes, LodBound, LodMetaLod, LodMetaNode, LodTileQuery};
 
 #[derive(serde::Deserialize)]
 struct LodMetaSerde {
     #[serde(rename = "lodLevels")]
     #[allow(dead_code)]
     lod_levels: usize,
-    filenames: Vec<String>,
     tree: LodMetaNodeSerde,
 }
 
@@ -58,47 +57,33 @@ fn convert_node(node: LodMetaNodeSerde) -> LodMetaNode {
     }
 }
 
-#[wasm_bindgen(js_name = LodChunkManager)]
-pub struct LodChunkManagerWasm {
-    inner: LodChunkManager,
+#[wasm_bindgen(js_name = LodTileQuery)]
+pub struct LodTileQueryWasm {
+    inner: LodTileQuery,
 }
 
 #[wasm_bindgen]
-impl LodChunkManagerWasm {
+impl LodTileQueryWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new(meta_json: &str, lod_index: u32, max_requests_per_tick: u32) -> Result<LodChunkManagerWasm, JsValue> {
+    pub fn new(meta_json: &str, lod_index: u32) -> Result<LodTileQueryWasm, JsValue> {
         let meta: LodMetaSerde =
             serde_json::from_str(meta_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         let root = convert_node(meta.tree);
         let mut nodes = Vec::new();
-        flatten_lod_nodes(&root, lod_index as usize, &mut nodes);
+        let mut next_id = 0u32;
+        collect_lod_nodes(&root, lod_index as usize, &mut nodes, &mut next_id);
 
-        let manager = LodChunkManager::new(nodes, meta.filenames.len(), max_requests_per_tick as usize);
+        let query = LodTileQuery::new(nodes);
 
-        Ok(LodChunkManagerWasm { inner: manager })
+        Ok(LodTileQueryWasm { inner: query })
     }
 
-    pub fn update_view_proj(&mut self, view_proj: &[f32]) -> Result<(), JsValue> {
-        self.inner
-            .update_view_proj(view_proj)
-            .map_err(|e| JsValue::from_str(&e.to_string()))
-    }
-
-    pub fn drain_requests(&mut self) -> Uint32Array {
-        let requests = self.inner.drain_requests();
-        Uint32Array::from(requests.as_slice())
-    }
-
-    pub fn mark_loaded(&mut self, file_index: u32) {
-        self.inner.mark_loaded(file_index);
-    }
-
-    pub fn mark_unrequested(&mut self, file_index: u32) {
-        self.inner.mark_unrequested(file_index);
-    }
-
-    pub fn file_state(&self, file_index: u32) -> u8 {
-        self.inner.file_state(file_index)
+    pub fn query_view_proj(&self, view_proj: &[f32]) -> Result<Uint32Array, JsValue> {
+        let result = self
+            .inner
+            .query_view_proj(view_proj)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        Ok(Uint32Array::from(result.as_slice()))
     }
 }

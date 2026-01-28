@@ -125,104 +125,78 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
-const LodChunkManagerFinalization = (typeof FinalizationRegistry === 'undefined')
+const LodTileQueryFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_lodchunkmanager_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_lodtilequery_free(ptr >>> 0, 1));
 
-const LodChunkManagerWasmFinalization = (typeof FinalizationRegistry === 'undefined')
+const LodTileQueryWasmFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_lodchunkmanagerwasm_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_lodtilequerywasm_free(ptr >>> 0, 1));
 
 const SplatPlyBuffersFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_splatplybuffers_free(ptr >>> 0, 1));
 
-export class LodChunkManager {
+export class LodTileQuery {
     static __wrap(ptr) {
         ptr = ptr >>> 0;
-        const obj = Object.create(LodChunkManager.prototype);
+        const obj = Object.create(LodTileQuery.prototype);
         obj.__wbg_ptr = ptr;
-        LodChunkManagerFinalization.register(obj, obj.__wbg_ptr, obj);
+        LodTileQueryFinalization.register(obj, obj.__wbg_ptr, obj);
         return obj;
     }
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
         this.__wbg_ptr = 0;
-        LodChunkManagerFinalization.unregister(this);
+        LodTileQueryFinalization.unregister(this);
         return ptr;
     }
     free() {
         const ptr = this.__destroy_into_raw();
-        wasm.__wbg_lodchunkmanager_free(ptr, 0);
+        wasm.__wbg_lodtilequery_free(ptr, 0);
     }
 }
-if (Symbol.dispose) LodChunkManager.prototype[Symbol.dispose] = LodChunkManager.prototype.free;
+if (Symbol.dispose) LodTileQuery.prototype[Symbol.dispose] = LodTileQuery.prototype.free;
 
-export class LodChunkManagerWasm {
+export class LodTileQueryWasm {
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
         this.__wbg_ptr = 0;
-        LodChunkManagerWasmFinalization.unregister(this);
+        LodTileQueryWasmFinalization.unregister(this);
         return ptr;
     }
     free() {
         const ptr = this.__destroy_into_raw();
-        wasm.__wbg_lodchunkmanagerwasm_free(ptr, 0);
-    }
-    /**
-     * @param {number} file_index
-     * @returns {number}
-     */
-    file_state(file_index) {
-        const ret = wasm.lodchunkmanagerwasm_file_state(this.__wbg_ptr, file_index);
-        return ret;
-    }
-    /**
-     * @param {number} file_index
-     */
-    mark_loaded(file_index) {
-        wasm.lodchunkmanagerwasm_mark_loaded(this.__wbg_ptr, file_index);
-    }
-    /**
-     * @returns {Uint32Array}
-     */
-    drain_requests() {
-        const ret = wasm.lodchunkmanagerwasm_drain_requests(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @param {number} file_index
-     */
-    mark_unrequested(file_index) {
-        wasm.lodchunkmanagerwasm_mark_unrequested(this.__wbg_ptr, file_index);
+        wasm.__wbg_lodtilequerywasm_free(ptr, 0);
     }
     /**
      * @param {Float32Array} view_proj
+     * @returns {Uint32Array}
      */
-    update_view_proj(view_proj) {
+    query_view_proj(view_proj) {
         const ptr0 = passArrayF32ToWasm0(view_proj, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.lodchunkmanagerwasm_update_view_proj(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
+        const ret = wasm.lodtilequerywasm_query_view_proj(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
         }
+        return takeFromExternrefTable0(ret[0]);
     }
     /**
      * @param {string} meta_json
      * @param {number} lod_index
-     * @param {number} max_requests_per_tick
      */
-    constructor(meta_json, lod_index, max_requests_per_tick) {
+    constructor(meta_json, lod_index) {
         const ptr0 = passStringToWasm0(meta_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.lodchunkmanagerwasm_new(ptr0, len0, lod_index, max_requests_per_tick);
+        const ret = wasm.lodtilequerywasm_new(ptr0, len0, lod_index);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
-        return LodChunkManager.__wrap(ret[0]);
+        return LodTileQuery.__wrap(ret[0]);
     }
 }
-if (Symbol.dispose) LodChunkManagerWasm.prototype[Symbol.dispose] = LodChunkManagerWasm.prototype.free;
+if (Symbol.dispose) LodTileQueryWasm.prototype[Symbol.dispose] = LodTileQueryWasm.prototype.free;
 
 export class SplatPlyBuffers {
     static __wrap(ptr) {
