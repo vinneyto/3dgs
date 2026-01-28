@@ -8,6 +8,7 @@ use crate::lod_manager_core::{flatten_lod_nodes, LodBound, LodChunkManager, LodM
 #[derive(serde::Deserialize)]
 struct LodMetaSerde {
     #[serde(rename = "lodLevels")]
+    #[allow(dead_code)]
     lod_levels: usize,
     filenames: Vec<String>,
     tree: LodMetaNodeSerde,

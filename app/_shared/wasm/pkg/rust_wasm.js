@@ -46,6 +46,50 @@ function passArray8ToWasm0(arg, malloc) {
     return ptr;
 }
 
+function passArrayF32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getFloat32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passStringToWasm0(arg, malloc, realloc) {
+    if (realloc === undefined) {
+        const buf = cachedTextEncoder.encode(arg);
+        const ptr = malloc(buf.length, 1) >>> 0;
+        getUint8ArrayMemory0().subarray(ptr, ptr + buf.length).set(buf);
+        WASM_VECTOR_LEN = buf.length;
+        return ptr;
+    }
+
+    let len = arg.length;
+    let ptr = malloc(len, 1) >>> 0;
+
+    const mem = getUint8ArrayMemory0();
+
+    let offset = 0;
+
+    for (; offset < len; offset++) {
+        const code = arg.charCodeAt(offset);
+        if (code > 0x7F) break;
+        mem[ptr + offset] = code;
+    }
+    if (offset !== len) {
+        if (offset !== 0) {
+            arg = arg.slice(offset);
+        }
+        ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
+        const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
+        const ret = cachedTextEncoder.encodeInto(arg, view);
+
+        offset += ret.written;
+        ptr = realloc(ptr, len, offset, 1) >>> 0;
+    }
+
+    WASM_VECTOR_LEN = offset;
+    return ptr;
+}
+
 function takeFromExternrefTable0(idx) {
     const value = wasm.__wbindgen_externrefs.get(idx);
     wasm.__externref_table_dealloc(idx);
@@ -66,11 +110,119 @@ function decodeText(ptr, len) {
     return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
 }
 
+const cachedTextEncoder = new TextEncoder();
+
+if (!('encodeInto' in cachedTextEncoder)) {
+    cachedTextEncoder.encodeInto = function (arg, view) {
+        const buf = cachedTextEncoder.encode(arg);
+        view.set(buf);
+        return {
+            read: arg.length,
+            written: buf.length
+        };
+    }
+}
+
 let WASM_VECTOR_LEN = 0;
+
+const LodChunkManagerFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_lodchunkmanager_free(ptr >>> 0, 1));
+
+const LodChunkManagerWasmFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_lodchunkmanagerwasm_free(ptr >>> 0, 1));
 
 const SplatPlyBuffersFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_splatplybuffers_free(ptr >>> 0, 1));
+
+export class LodChunkManager {
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(LodChunkManager.prototype);
+        obj.__wbg_ptr = ptr;
+        LodChunkManagerFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        LodChunkManagerFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_lodchunkmanager_free(ptr, 0);
+    }
+}
+if (Symbol.dispose) LodChunkManager.prototype[Symbol.dispose] = LodChunkManager.prototype.free;
+
+export class LodChunkManagerWasm {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        LodChunkManagerWasmFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_lodchunkmanagerwasm_free(ptr, 0);
+    }
+    /**
+     * @param {number} file_index
+     * @returns {number}
+     */
+    file_state(file_index) {
+        const ret = wasm.lodchunkmanagerwasm_file_state(this.__wbg_ptr, file_index);
+        return ret;
+    }
+    /**
+     * @param {number} file_index
+     */
+    mark_loaded(file_index) {
+        wasm.lodchunkmanagerwasm_mark_loaded(this.__wbg_ptr, file_index);
+    }
+    /**
+     * @returns {Uint32Array}
+     */
+    drain_requests() {
+        const ret = wasm.lodchunkmanagerwasm_drain_requests(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} file_index
+     */
+    mark_unrequested(file_index) {
+        wasm.lodchunkmanagerwasm_mark_unrequested(this.__wbg_ptr, file_index);
+    }
+    /**
+     * @param {Float32Array} view_proj
+     */
+    update_view_proj(view_proj) {
+        const ptr0 = passArrayF32ToWasm0(view_proj, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.lodchunkmanagerwasm_update_view_proj(this.__wbg_ptr, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * @param {string} meta_json
+     * @param {number} lod_index
+     * @param {number} max_requests_per_tick
+     */
+    constructor(meta_json, lod_index, max_requests_per_tick) {
+        const ptr0 = passStringToWasm0(meta_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.lodchunkmanagerwasm_new(ptr0, len0, lod_index, max_requests_per_tick);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return LodChunkManager.__wrap(ret[0]);
+    }
+}
+if (Symbol.dispose) LodChunkManagerWasm.prototype[Symbol.dispose] = LodChunkManagerWasm.prototype.free;
 
 export class SplatPlyBuffers {
     static __wrap(ptr) {
@@ -319,6 +471,10 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbg_new_25f239778d6112b9 = function() {
         const ret = new Array();
+        return ret;
+    };
+    imports.wbg.__wbg_new_from_slice_db0691b69e9d3891 = function(arg0, arg1) {
+        const ret = new Uint32Array(getArrayU32FromWasm0(arg0, arg1));
         return ret;
     };
     imports.wbg.__wbg_push_7d9be8f38fc13975 = function(arg0, arg1) {

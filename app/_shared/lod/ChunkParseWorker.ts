@@ -74,14 +74,18 @@ self.onmessage = async (event: MessageEvent<ParseRequest>) => {
 
   try {
     const chunk = await parseBytes(bytes, format);
-    const transfer: ArrayBuffer[] = [
-      chunk.center.buffer,
-      chunk.covariance.buffer,
-      chunk.rgba.buffer,
-    ];
-    if (chunk.shCoeffsL1) transfer.push(chunk.shCoeffsL1.buffer);
-    if (chunk.shCoeffsL2Packed) transfer.push(chunk.shCoeffsL2Packed.buffer);
-    if (chunk.shCoeffsL3Packed) transfer.push(chunk.shCoeffsL3Packed.buffer);
+    const transfer: Transferable[] = [];
+    const pushBuffer = (buf: ArrayBufferLike) => {
+      if (buf instanceof ArrayBuffer) {
+        transfer.push(buf);
+      }
+    };
+    pushBuffer(chunk.center.buffer);
+    pushBuffer(chunk.covariance.buffer);
+    pushBuffer(chunk.rgba.buffer);
+    if (chunk.shCoeffsL1) pushBuffer(chunk.shCoeffsL1.buffer);
+    if (chunk.shCoeffsL2Packed) pushBuffer(chunk.shCoeffsL2Packed.buffer);
+    if (chunk.shCoeffsL3Packed) pushBuffer(chunk.shCoeffsL3Packed.buffer);
 
     const response: ParseResponse = {
       type: "result",

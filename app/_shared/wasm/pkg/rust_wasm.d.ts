@@ -1,6 +1,12 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export class LodChunkManager {
+  private constructor();
+  free(): void;
+  [Symbol.dispose](): void;
+}
+
 export class SplatPlyBuffers {
   private constructor();
   free(): void;
@@ -39,8 +45,13 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_splatplybuffers_free: (a: number, b: number) => void;
+  readonly hamming_distance_u32: (a: number, b: number) => number;
+  readonly is_bit_set_u32: (a: number, b: number) => number;
   readonly parse_splat_ply: (a: number, b: number) => [number, number, number];
   readonly parse_splat_ply_with_opts: (a: number, b: number, c: number, d: number) => [number, number, number];
+  readonly powers_of_two_u32: (a: number) => any;
+  readonly set_bit_u32: (a: number, b: number) => number;
+  readonly shift_right_report_u32: (a: number, b: number) => [number, number];
   readonly splatplybuffers_bboxMax: (a: number) => any;
   readonly splatplybuffers_bboxMin: (a: number) => any;
   readonly splatplybuffers_center: (a: number) => any;
@@ -54,15 +65,18 @@ export interface InitOutput {
   readonly splatplybuffers_shCoeffsL3Packed: (a: number) => any;
   readonly splatplybuffers_shCoeffsL3Scale: (a: number) => number;
   readonly splatplybuffers_shDegree: (a: number) => number;
-  readonly hamming_distance_u32: (a: number, b: number) => number;
-  readonly is_bit_set_u32: (a: number, b: number) => number;
-  readonly powers_of_two_u32: (a: number) => any;
-  readonly set_bit_u32: (a: number, b: number) => number;
-  readonly shift_right_report_u32: (a: number, b: number) => [number, number];
+  readonly __wbg_lodchunkmanager_free: (a: number, b: number) => void;
+  readonly lodchunkmanagerwasm_drain_requests: (a: number) => any;
+  readonly lodchunkmanagerwasm_file_state: (a: number, b: number) => number;
+  readonly lodchunkmanagerwasm_mark_loaded: (a: number, b: number) => void;
+  readonly lodchunkmanagerwasm_mark_unrequested: (a: number, b: number) => void;
+  readonly lodchunkmanagerwasm_new: (a: number, b: number, c: number, d: number) => [number, number, number];
+  readonly lodchunkmanagerwasm_update_view_proj: (a: number, b: number, c: number) => [number, number];
   readonly __wbindgen_externrefs: WebAssembly.Table;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __externref_table_dealloc: (a: number) => void;
+  readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_start: () => void;
 }
 
