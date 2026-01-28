@@ -109,20 +109,20 @@ export class LodStreamingController {
         .catch((err) => {
           console.error("[lod] fetch failed", url, err);
           this.inflightFetches.delete(fileIndex);
-          this.manager.mark_unrequested(fileIndex);
+          this.manager?.mark_unrequested(fileIndex);
         });
     }
 
     for (const result of this.parserPool.drainResults()) {
       this.inflightFetches.delete(result.fileIndex);
-      this.manager.mark_loaded(result.fileIndex);
+      this.manager?.mark_loaded(result.fileIndex);
       onChunkLoaded({ fileIndex: result.fileIndex, chunk: result.chunk });
     }
 
     for (const error of this.parserPool.drainErrors()) {
       console.error("[lod] parse failed", error);
       this.inflightFetches.delete(error.fileIndex);
-      this.manager.mark_unrequested(error.fileIndex);
+      this.manager?.mark_unrequested(error.fileIndex);
     }
   }
 
