@@ -10,7 +10,8 @@ import {
 } from "three/webgpu";
 import type { PlyPacked } from "@/app/_shared/hooks/usePlyPacked";
 import { usePlyEllipsoidBuffersFromData } from "@/app/_shared/hooks/usePlyEllipsoidBuffers";
-import { useSplatIndirectCullSort } from "@/app/_shared/hooks/useSplatIndirectCullSort";
+import { useSplatIndirectCull } from "@/app/_shared/hooks/useSplatIndirectCull";
+import { useSplatDepthSort } from "@/app/_shared/hooks/useSplatDepthSort";
 import {
   instancedSplat,
   type InstancedSplatCutoffMode,
@@ -129,12 +130,27 @@ export function IndirectCulledSplatScene({
 
   const meshRef = useRef<InstancedMesh | null>(null);
 
-  const { sortedSplatIndices } = useSplatIndirectCullSort({
-    enabled: enableCulling && enableSorting,
+  const cull = useSplatIndirectCull({
+    enabled: enableCulling,
     centersBuf,
     count: data.count,
     meshRef,
   });
+
+  const sort = useSplatDepthSort({
+    enabled: enableCulling && enableSorting,
+    visibleIndices: cull.visibleIndices,
+    visibleDepthKeys: cull.visibleDepthKeys,
+    visibleCount: cull.visibleCount,
+    maxCount: data.count,
+    descending: true,
+  });
+
+  const sortedSplatIndices = enableCulling
+    ? enableSorting
+      ? sort.sortedSplatIndices
+      : cull.visibleIndices
+    : null;
 
   const shader = useMemo(
     () =>
@@ -215,4 +231,3 @@ export function IndirectCulledSplatScene({
     </>
   );
 }
-
