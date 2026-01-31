@@ -19,6 +19,7 @@ const demos = [
   { href: "/ply-header", label: "PLY header (cactus)" },
   { href: "/ply-ellipsoids", label: "PLY ellipsoids (instanced)" },
   { href: "/ply-gaussians", label: "PLY gaussians (WIP)" },
+  { href: "/ply-gaussians-gpu-culling", label: "PLY gaussians (GPU culling)" },
   { href: "/photo-ply", label: "Photo PLY (WIP)" },
   { href: "/ref-splats", label: "Ref splats (PLY)" },
   { href: "/prefix-sum", label: "Prefix sum (CPU / TS)" },
