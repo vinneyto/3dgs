@@ -1,9 +1,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo } from "react";
-import { instancedArray } from "three/tsl";
 import type { StorageBufferNode } from "three/webgpu";
 import { useWebGPU } from "./useWebGPU";
-import { createBlockRadixSortIndices } from "@/app/_shared/tsl/gaussian/radixSortIndices";
+import { GPURadixSort } from "@/app/_shared/gpu/GPURadixSort";
 
 /**
  * Runs a GPU radix sort each frame to produce `sortedIndices`, ordering instances by depth.
@@ -24,64 +23,29 @@ export function useRadixSortDepthIndices({
   descending?: boolean;
 }): StorageBufferNode | null {
   const gl = useWebGPU();
-  const workgroupSize = 256;
-  const numGroups = useMemo(() => Math.ceil(count / workgroupSize), [count]);
+  const sorter = useMemo(() => new GPURadixSort(gl), [gl]);
 
-  // Ping-pong indices
-  const indicesA = useMemo(() => instancedArray(count, "uint"), [count]);
-  const indicesB = useMemo(() => instancedArray(count, "uint"), [count]);
+  const sortedIndicesBuf = useMemo(() => {
+    sorter
+      .setDepthKeysBuffer(depthKeysBuf)
+      .setCount(count)
+      .setDescending(descending);
 
-  // Block-radix: group histograms + prefix buffers
-  const groupHists = useMemo(
-    () => instancedArray(numGroups * 256, "uint").toAtomic(),
-    [numGroups],
-  );
-  const totals = useMemo(() => instancedArray(256, "uint"), []);
-  const bucketBase = useMemo(() => instancedArray(256, "uint"), []);
-  const groupBase = useMemo(
-    () => instancedArray(numGroups * 256, "uint"),
-    [numGroups],
-  );
+    // Important: allocate buffers during render so we never bind a 0-sized storage buffer
+    // on the very first frame (before `useFrame` runs).
+    sorter.prepare();
 
-  const sorter = useMemo(() => {
-    if (!depthKeysBuf) return null;
-    return createBlockRadixSortIndices({
-      depthKeys: depthKeysBuf,
-      count,
-      numGroups,
-      indicesA,
-      indicesB,
-      groupHists,
-      totals,
-      bucketBase,
-      groupBase,
-      descending,
-    });
-  }, [
-    depthKeysBuf,
-    count,
-    numGroups,
-    indicesA,
-    indicesB,
-    groupHists,
-    totals,
-    bucketBase,
-    groupBase,
-    descending,
-  ]);
+    return depthKeysBuf ? sorter.getSortedIndicesBuffer() : null;
+  }, [sorter, depthKeysBuf, count, descending]);
 
   useFrame(() => {
     if (!enabled) return;
     if (!depthKeysBuf) return;
-    if (!sorter) return;
-
-    for (const c of sorter.computes) {
-      gl.compute(c);
-    }
+    sorter.dispatch();
   });
 
   // Important: even when `enabled` is false, keep returning the same `sortedIndices` buffer.
   // This lets render paths "freeze" the last sorted order (and avoids any consumers treating
   // the buffer as absent / resetting state).
-  return sorter ? sorter.sortedIndices : null;
+  return sortedIndicesBuf;
 }
