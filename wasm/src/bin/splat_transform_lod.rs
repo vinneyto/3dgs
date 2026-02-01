@@ -53,6 +53,8 @@ struct OutputRoot {
     meta: OutputMeta,
     stats: OutputStats,
     nodes: Vec<OutputNode>,
+    /// Original splat indices in Morton-sorted order.
+    order: Vec<u32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -386,6 +388,7 @@ fn main() {
         },
         stats,
         nodes,
+        order: codes_with_idx.into_iter().map(|(_, i)| i).collect(),
     };
 
     ensure_parent_dir(&output_path).unwrap_or_else(|e| {
