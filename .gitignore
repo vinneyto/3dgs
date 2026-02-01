@@ -52,6 +52,3 @@ next-env.d.ts
 
 # scratch / vendor analysis
 /external/
-
-# splat-transform scratch outputs
-/tmp/splat-transform/
