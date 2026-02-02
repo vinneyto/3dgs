@@ -133,6 +133,7 @@ export function IndirectCulledSplatScene({
   const cull = useSplatIndirectCull({
     enabled: enableCulling,
     centersBuf,
+    covBuf,
     count: data.count,
     meshRef,
   });

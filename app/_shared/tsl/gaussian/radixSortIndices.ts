@@ -60,6 +60,45 @@ export function createRadixInitIndicesActiveCountCompute({
     .setName(name);
 }
 
+/**
+ * Computes indirect dispatch args for the radix sort "active-count" mode.
+ *
+ * Writes `dispatchArgs = u32[3]` for `dispatchWorkgroupsIndirect`:
+ * - x = max(1, ceilDiv(activeCount[0], RADIX_WORKGROUP_SIZE))
+ * - y = 1
+ * - z = 1
+ *
+ * Notes:
+ * - We clamp x>=1 to avoid backend issues with 0-sized dispatch.
+ * - Some passes use x workgroups to cover x*RADIX_WORKGROUP_SIZE invocations.
+ */
+export function createRadixBuildIndirectDispatchArgsActiveCountCompute({
+  activeCount,
+  dispatchArgs,
+  name = "RadixActive_BuildIndirectDispatchArgs",
+}: {
+  activeCount: StorageBufferNode; // u32[1]
+  dispatchArgs: StorageBufferNode; // u32[3]
+  name?: string;
+}): ComputeNode {
+  const WG = uint(RADIX_WORKGROUP_SIZE);
+  const WGm1 = uint(RADIX_WORKGROUP_SIZE - 1);
+
+  return Fn(() => {
+    const n = activeCount.element(uint(0));
+    const groups = n.add(WGm1).div(WG).toVar();
+    If(groups.equal(uint(0)), () => {
+      groups.assign(uint(1));
+    });
+
+    dispatchArgs.element(uint(0)).assign(groups);
+    dispatchArgs.element(uint(1)).assign(uint(1));
+    dispatchArgs.element(uint(2)).assign(uint(1));
+  })()
+    .compute(1, [1, 1, 1])
+    .setName(name);
+}
+
 // ----------------------------
 // Deterministic Block-Radix Sort
 // ----------------------------
@@ -200,6 +239,47 @@ export function createBlockTotalsCompute({
     .setName("BlockRadixTotals256");
 }
 
+/**
+ * Same as `createBlockTotalsCompute` but sums only active groups.
+ *
+ * This is required when upstream passes only clear/build histograms for active
+ * groups (e.g. using indirect dispatch), to avoid summing stale histograms from
+ * inactive groups.
+ */
+export function createBlockTotalsActiveCountCompute({
+  groupHists,
+  totals,
+  activeCount,
+  name = "BlockRadixTotals256_ActiveCount",
+}: {
+  groupHists: StorageBufferNode;
+  totals: StorageBufferNode;
+  activeCount: StorageBufferNode; // u32[1]
+  name?: string;
+}): ComputeNode {
+  const WG = uint(RADIX_WORKGROUP_SIZE);
+  const WGm1 = uint(RADIX_WORKGROUP_SIZE - 1);
+
+  return Fn(() => {
+    const b = invocationLocalIndex; // 0..255
+    const sum = uint(0).toVar();
+
+    const n = activeCount.element(uint(0));
+    const activeGroups = n.add(WGm1).div(WG);
+
+    const g = uint(0).toVar();
+    Loop(g.lessThan(activeGroups), () => {
+      const base = g.mul(uint(256));
+      sum.assign(add(sum, atomicLoad(groupHists.element(add(base, b)))));
+      g.assign(add(g, uint(1)));
+    });
+
+    totals.element(b).assign(sum);
+  })()
+    .compute(256, [RADIX_WORKGROUP_SIZE, 1, 1])
+    .setName(name);
+}
+
 export function createScan256ExclusiveCompute({
   input,
   output,
@@ -267,6 +347,47 @@ export function createBlockGroupBaseCompute({
   })()
     .compute(256, [RADIX_WORKGROUP_SIZE, 1, 1])
     .setName("BlockRadixGroupBase");
+}
+
+/**
+ * Same as `createBlockGroupBaseCompute` but iterates only active groups.
+ *
+ * This pairs with indirect-dispatch active-count mode, where only active groups'
+ * histograms are updated.
+ */
+export function createBlockGroupBaseActiveCountCompute({
+  groupHists,
+  bucketBase,
+  groupBase,
+  activeCount,
+  name = "BlockRadixGroupBase_ActiveCount",
+}: {
+  groupHists: StorageBufferNode;
+  bucketBase: StorageBufferNode;
+  groupBase: StorageBufferNode;
+  activeCount: StorageBufferNode; // u32[1]
+  name?: string;
+}): ComputeNode {
+  const WG = uint(RADIX_WORKGROUP_SIZE);
+  const WGm1 = uint(RADIX_WORKGROUP_SIZE - 1);
+
+  return Fn(() => {
+    const b = invocationLocalIndex; // 0..255
+    const running = bucketBase.element(b).toVar();
+
+    const n = activeCount.element(uint(0));
+    const activeGroups = n.add(WGm1).div(WG);
+
+    const g = uint(0).toVar();
+    Loop(g.lessThan(activeGroups), () => {
+      const base = g.mul(uint(256));
+      groupBase.element(add(base, b)).assign(running);
+      running.assign(add(running, atomicLoad(groupHists.element(add(base, b)))));
+      g.assign(add(g, uint(1)));
+    });
+  })()
+    .compute(256, [RADIX_WORKGROUP_SIZE, 1, 1])
+    .setName(name);
 }
 
 export function createBlockScatterStableCompute({

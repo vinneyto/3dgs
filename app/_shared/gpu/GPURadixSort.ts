@@ -3,16 +3,20 @@ import type {
   StorageBufferNode,
   WebGPURenderer,
 } from "three/webgpu";
-import { instancedArray } from "three/tsl";
+import { IndirectStorageBufferAttribute } from "three/webgpu";
+import { instancedArray, storage } from "three/tsl";
 import {
   RADIX_WORKGROUP_SIZE,
+  createBlockGroupBaseActiveCountCompute,
   createBlockBuildGroupHistsCompute,
   createBlockBuildGroupHistsActiveCountCompute,
   createBlockClearGroupHistsCompute,
   createBlockGroupBaseCompute,
   createBlockScatterStableCompute,
   createBlockScatterStableActiveCountCompute,
+  createBlockTotalsActiveCountCompute,
   createBlockTotalsCompute,
+  createRadixBuildIndirectDispatchArgsActiveCountCompute,
   createRadixInitIndicesCompute,
   createRadixInitIndicesActiveCountCompute,
   createScan256ExclusiveCompute,
@@ -30,6 +34,9 @@ export type GPURadixSortBuffers = {
   bucketBase: StorageBufferNode; // u32[256]
   groupBase: StorageBufferNode; // u32[numGroups*256]
 };
+
+type DispatchSize = number[] | number | IndirectStorageBufferAttribute | null;
+type DispatchOp = { node: ComputeNode; dispatchSize?: DispatchSize };
 
 /**
  * Imperative multi-dispatch radix sort for indices by a u32 key buffer.
@@ -65,7 +72,11 @@ export class GPURadixSort {
   private bucketBase: StorageBufferNode = instancedArray(256, "uint");
   private groupBase: StorageBufferNode = instancedArray(0, "uint");
 
-  private dispatches: ComputeNode[] = [];
+  // Active-count indirect dispatch (workgroupsIndirect args: u32[3])
+  private activeDispatchAttr: IndirectStorageBufferAttribute | null = null;
+  private activeDispatchArgs: StorageBufferNode | null = null;
+
+  private dispatches: DispatchOp[] = [];
   private dirty = true;
 
   constructor(gl: WebGPURenderer) {
@@ -183,17 +194,38 @@ export class GPURadixSort {
     this.bucketBase = instancedArray(256, "uint");
 
     // Build multi-dispatch list.
-    const ops: ComputeNode[] = [];
+    const ops: DispatchOp[] = [];
     if (this.activeCount) {
-      ops.push(
-        createRadixInitIndicesActiveCountCompute({
-          indices: this.indicesA,
+      // Indirect dispatch args (u32[3]) used to reduce idle workgroups.
+      if (!this.activeDispatchAttr) {
+        const init = new Uint32Array(3);
+        init[0] = 1;
+        init[1] = 1;
+        init[2] = 1;
+        this.activeDispatchAttr = new IndirectStorageBufferAttribute(init, 3);
+        this.activeDispatchAttr.needsUpdate = true;
+        this.activeDispatchArgs = storage(this.activeDispatchAttr, "uint", 3);
+      }
+
+      ops.push({
+        node: createRadixBuildIndirectDispatchArgsActiveCountCompute({
           activeCount: this.activeCount,
-          maxCount: dispatchCount,
+          dispatchArgs: this.activeDispatchArgs!,
         }),
+      });
+
+      ops.push(
+        {
+          node: createRadixInitIndicesActiveCountCompute({
+            indices: this.indicesA,
+            activeCount: this.activeCount,
+            maxCount: dispatchCount,
+          }),
+          dispatchSize: this.activeDispatchAttr,
+        },
       );
     } else {
-      ops.push(createRadixInitIndicesCompute(this.indicesA, dispatchCount));
+      ops.push({ node: createRadixInitIndicesCompute(this.indicesA, dispatchCount) });
     }
 
     const shifts = [0, 8, 16, 24] as const;
@@ -202,66 +234,115 @@ export class GPURadixSort {
       const inBuf = passIndex % 2 === 0 ? this.indicesA : this.indicesB;
       const outBuf = passIndex % 2 === 0 ? this.indicesB : this.indicesA;
 
+      const activeDispatch = this.activeCount ? this.activeDispatchAttr : undefined;
+
+      ops.push({
+        node: createBlockClearGroupHistsCompute(this.groupHists, groupBins),
+        dispatchSize: activeDispatch,
+      });
+
       ops.push(
-        createBlockClearGroupHistsCompute(this.groupHists, groupBins),
         this.activeCount
-          ? createBlockBuildGroupHistsActiveCountCompute({
-              depthKeys,
-              indicesIn: inBuf,
-              groupHists: this.groupHists,
-              activeCount: this.activeCount,
-              maxCount: dispatchCount,
-              numGroups,
-              shift,
-              descending: this.descending,
-            })
-          : createBlockBuildGroupHistsCompute({
-              depthKeys,
-              indicesIn: inBuf,
-              groupHists: this.groupHists,
-              count: dispatchCount,
-              numGroups,
-              shift,
-              descending: this.descending,
-            }),
-        createBlockTotalsCompute({
-          groupHists: this.groupHists,
-          totals: this.totals,
-          numGroups,
-        }),
-        createScan256ExclusiveCompute({
+          ? {
+              node: createBlockBuildGroupHistsActiveCountCompute({
+                depthKeys,
+                indicesIn: inBuf,
+                groupHists: this.groupHists,
+                activeCount: this.activeCount,
+                maxCount: dispatchCount,
+                numGroups,
+                shift,
+                descending: this.descending,
+              }),
+              dispatchSize: activeDispatch,
+            }
+          : {
+              node: createBlockBuildGroupHistsCompute({
+                depthKeys,
+                indicesIn: inBuf,
+                groupHists: this.groupHists,
+                count: dispatchCount,
+                numGroups,
+                shift,
+                descending: this.descending,
+              }),
+            },
+      );
+
+      ops.push(
+        this.activeCount
+          ? {
+              node: createBlockTotalsActiveCountCompute({
+                groupHists: this.groupHists,
+                totals: this.totals,
+                activeCount: this.activeCount,
+              }),
+            }
+          : {
+              node: createBlockTotalsCompute({
+                groupHists: this.groupHists,
+                totals: this.totals,
+                numGroups,
+              }),
+            },
+      );
+
+      ops.push({
+        node: createScan256ExclusiveCompute({
           input: this.totals,
           output: this.bucketBase,
           name: "BlockRadixBucketBase256",
         }),
-        createBlockGroupBaseCompute({
-          groupHists: this.groupHists,
-          bucketBase: this.bucketBase,
-          groupBase: this.groupBase,
-          numGroups,
-        }),
+      });
+
+      ops.push(
         this.activeCount
-          ? createBlockScatterStableActiveCountCompute({
-              depthKeys,
-              indicesIn: inBuf,
-              indicesOut: outBuf,
-              groupBase: this.groupBase,
-              activeCount: this.activeCount,
-              maxCount: dispatchCount,
-              numGroups,
-              shift,
-              descending: this.descending,
-            })
-          : createBlockScatterStableCompute({
-              depthKeys,
-              indicesIn: inBuf,
-              indicesOut: outBuf,
-              groupBase: this.groupBase,
-              count: dispatchCount,
-              numGroups,
-              shift,
-              descending: this.descending,
-            }),
+          ? {
+              node: createBlockGroupBaseActiveCountCompute({
+                groupHists: this.groupHists,
+                bucketBase: this.bucketBase,
+                groupBase: this.groupBase,
+                activeCount: this.activeCount,
+              }),
+            }
+          : {
+              node: createBlockGroupBaseCompute({
+                groupHists: this.groupHists,
+                bucketBase: this.bucketBase,
+                groupBase: this.groupBase,
+                numGroups,
+              }),
+            },
+      );
+
+      ops.push(
+        this.activeCount
+          ? {
+              node: createBlockScatterStableActiveCountCompute({
+                depthKeys,
+                indicesIn: inBuf,
+                indicesOut: outBuf,
+                groupBase: this.groupBase,
+                activeCount: this.activeCount,
+                maxCount: dispatchCount,
+                numGroups,
+                shift,
+                descending: this.descending,
+              }),
+              dispatchSize: activeDispatch,
+            }
+          : {
+              node: createBlockScatterStableCompute({
+                depthKeys,
+                indicesIn: inBuf,
+                indicesOut: outBuf,
+                groupBase: this.groupBase,
+                count: dispatchCount,
+                numGroups,
+                shift,
+                descending: this.descending,
+              }),
+            },
       );
     }
 
@@ -271,7 +352,9 @@ export class GPURadixSort {
   /** Dispatches the radix-sort passes on the renderer queue (fire-and-forget). */
   dispatch(): void {
     this.rebuildIfNeeded();
-    for (const c of this.dispatches) this.gl.compute(c);
+    for (const { node, dispatchSize } of this.dispatches) {
+      this.gl.compute(node, dispatchSize);
+    }
   }
 
   /** Dispatches the passes and awaits GPU completion (useful for benchmarks/tests). */

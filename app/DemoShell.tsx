@@ -26,6 +26,9 @@ const demos = [
   { href: "/rust-wasm", label: "PLY parse (Rust WASM)" },
   { href: "/rust-sogs-v2", label: "SOGS v2 parse (Rust WASM)" },
   { href: "/room-sog", label: "Room SOG render (Rust WASM)" },
+  { href: "/room-sog-gpu-culling", label: "Room SOG (GPU culling)" },
+  { href: "/truck-high-ply", label: "Truck PLY render (Rust WASM)" },
+  { href: "/truck-high-ply-gpu-culling", label: "Truck PLY (GPU culling)" },
   { href: "/rust-bitops", label: "Rust bitwise ops" },
   { href: "/sh-sphere", label: "SH sphere (widget)" },
 ];

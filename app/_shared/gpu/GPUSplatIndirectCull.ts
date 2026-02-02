@@ -9,11 +9,15 @@ import {
   If,
   add,
   bitXor,
+  dot,
   float,
   instanceIndex,
   int,
+  max,
   mul,
   storage,
+  sub,
+  sqrt,
   uint,
   uniform,
   vec4,
@@ -35,7 +39,23 @@ export type SplatIndirectCullOutputs = {
 type UniformMatrices = {
   uModelViewMatrix: ReturnType<typeof uniform<Matrix4>>;
   uProjectionMatrix: ReturnType<typeof uniform<Matrix4>>;
+  /**
+   * Distance-based LOD (world units; assumes your scene units are meters).
+   * If enabled, far-away splats need to be "big enough" (based on covariance) to be kept.
+   */
+  uLodEnabled: ReturnType<typeof uniform<number>>;
+  uLodStartDistanceM: ReturnType<typeof uniform<number>>;
+  uLodBaseMinRadiusM: ReturnType<typeof uniform<number>>;
+  uLodMinRadiusSlope: ReturnType<typeof uniform<number>>;
 };
+
+// Distance-based LOD defaults (tweak as you like).
+// Idea: after `LOD_START_DISTANCE_M`, progressively drop splats whose world-space "radius"
+// (approximated from covariance diagonal) is too small.
+const LOD_ENABLED = 1.0;
+const LOD_START_DISTANCE_M = 6.0;
+const LOD_BASE_MIN_RADIUS_M = 0.02;
+const LOD_MIN_RADIUS_SLOPE = 0.001;
 
 function createSharedMatricesUniforms(): UniformMatrices {
   const uModelViewMatrix = uniform<Matrix4>(new Matrix4()).setName(
@@ -44,29 +64,50 @@ function createSharedMatricesUniforms(): UniformMatrices {
   const uProjectionMatrix = uniform<Matrix4>(new Matrix4()).setName(
     "uCullProjectionMatrix",
   );
-  return { uModelViewMatrix, uProjectionMatrix };
+  const uLodEnabled = uniform(LOD_ENABLED).setName("uCullLodEnabled");
+  const uLodStartDistanceM = uniform(LOD_START_DISTANCE_M).setName(
+    "uCullLodStartDistanceM",
+  );
+  const uLodBaseMinRadiusM = uniform(LOD_BASE_MIN_RADIUS_M).setName(
+    "uCullLodBaseMinRadiusM",
+  );
+  const uLodMinRadiusSlope = uniform(LOD_MIN_RADIUS_SLOPE).setName(
+    "uCullLodMinRadiusSlope",
+  );
+
+  return {
+    uModelViewMatrix,
+    uProjectionMatrix,
+    uLodEnabled,
+    uLodStartDistanceM,
+    uLodBaseMinRadiusM,
+    uLodMinRadiusSlope,
+  };
 }
 
 function createFrustumFlagsCompute({
   centers,
+  cov,
   flags,
   maxCount,
   uniforms,
 }: {
   centers: StorageBufferNode;
+  // 2 vec3 entries per splat (covariance packed as 6 floats: [xx,xy,xz, yy,yz,zz]).
+  cov: StorageBufferNode;
   flags: StorageBufferNode;
   maxCount: number;
   uniforms: UniformMatrices;
 }): ComputeNode {
   const maxCountU = uint(maxCount);
   const zeroF = float(0.0);
+  const trueB = float(1.0).greaterThan(zeroF);
 
   return Fn(() => {
     If(instanceIndex.lessThan(maxCountU), () => {
       const center = centers.element(instanceIndex);
-      const clipPos = uniforms.uProjectionMatrix
-        .mul(uniforms.uModelViewMatrix)
-        .mul(vec4(center, 1.0));
+      const viewPos = uniforms.uModelViewMatrix.mul(vec4(center, 1.0));
+      const clipPos = uniforms.uProjectionMatrix.mul(viewPos);
 
       const w = clipPos.w;
       const minusW = mul(w, -1.0);
@@ -81,7 +122,33 @@ function createFrustumFlagsCompute({
         .and(clipPos.z.greaterThanEqual(zeroF))
         .and(clipPos.z.lessThanEqual(w));
 
-      flags.element(instanceIndex).assign(inside.select(uint(1), uint(0)));
+      // Extra distance-based LOD: far away splats must be "big enough".
+      // Approximate world-space radius from covariance diagonal: radius ~= sqrt(max(xx,yy,zz)).
+      const i2 = mul(instanceIndex, uint(2));
+      const cov0 = cov.element(i2);
+      const cov1 = cov.element(add(i2, uint(1)));
+      const diagMax = max(cov0.x, max(cov1.x, cov1.z));
+      const radiusM = sqrt(max(diagMax, float(1e-8)));
+
+      // Distance from camera in view space (same units as center/cov).
+      const distM = sqrt(dot(viewPos.xyz, viewPos.xyz));
+
+      const enabled = float(uniforms.uLodEnabled).greaterThan(0.5);
+      const pastStart = distM.greaterThan(float(uniforms.uLodStartDistanceM));
+
+      // minRadius(dist) = base + slope * max(dist - start, 0)
+      const minRadiusM = add(
+        float(uniforms.uLodBaseMinRadiusM),
+        mul(
+          float(uniforms.uLodMinRadiusSlope),
+          max(sub(distM, float(uniforms.uLodStartDistanceM)), zeroF),
+        ),
+      );
+      const bigEnough = radiusM.greaterThanEqual(minRadiusM);
+      const lodOk = pastStart.select(bigEnough, trueB);
+      const keep = inside.and(enabled.select(lodOk, trueB));
+
+      flags.element(instanceIndex).assign(keep.select(uint(1), uint(0)));
     });
   })()
     .compute(maxCount, [256, 1, 1])
@@ -182,6 +249,7 @@ export class GPUSplatIndirectCull {
   private gl: WebGPURenderer;
   private maxCount: number;
   private centers: StorageBufferNode;
+  private cov: StorageBufferNode;
 
   private uniforms: UniformMatrices;
 
@@ -205,10 +273,11 @@ export class GPUSplatIndirectCull {
 
   constructor(
     gl: WebGPURenderer,
-    params: { centers: StorageBufferNode; maxCount: number },
+    params: { centers: StorageBufferNode; cov: StorageBufferNode; maxCount: number },
   ) {
     this.gl = gl;
     this.centers = params.centers;
+    this.cov = params.cov;
     this.maxCount = Math.max(0, params.maxCount | 0);
 
     this.uniforms = createSharedMatricesUniforms();
@@ -234,6 +303,7 @@ export class GPUSplatIndirectCull {
     // Build compute nodes
     this.computeFlags = createFrustumFlagsCompute({
       centers: this.centers,
+      cov: this.cov,
       flags: this.flags,
       maxCount: this.maxCount,
       uniforms: this.uniforms,
@@ -279,6 +349,33 @@ export class GPUSplatIndirectCull {
   setMatrices(modelView: Matrix4, projection: Matrix4): void {
     this.uniforms.uModelViewMatrix.value.copy(modelView);
     this.uniforms.uProjectionMatrix.value.copy(projection);
+  }
+
+  /**
+   * Configure distance-based LOD in "meters" (scene units).
+   *
+   * - startDistanceM: after this, small splats will be dropped more aggressively.
+   * - baseMinRadiusM: minimum world-space radius at startDistanceM.
+   * - minRadiusSlope: linear increase of min radius per extra meter.
+   */
+  setDistanceLod(params: {
+    enabled?: boolean;
+    startDistanceM?: number;
+    baseMinRadiusM?: number;
+    minRadiusSlope?: number;
+  }): void {
+    if (params.enabled !== undefined) {
+      this.uniforms.uLodEnabled.value = params.enabled ? 1.0 : 0.0;
+    }
+    if (params.startDistanceM !== undefined) {
+      this.uniforms.uLodStartDistanceM.value = params.startDistanceM;
+    }
+    if (params.baseMinRadiusM !== undefined) {
+      this.uniforms.uLodBaseMinRadiusM.value = params.baseMinRadiusM;
+    }
+    if (params.minRadiusSlope !== undefined) {
+      this.uniforms.uLodMinRadiusSlope.value = params.minRadiusSlope;
+    }
   }
 
   /** Runs: flags → scan → compact → visibleCount+indirect → visibleDepthKeys. */

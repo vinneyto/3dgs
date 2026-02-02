@@ -27,11 +27,13 @@ export type SplatIndirectCullHookResult = {
 export function useSplatIndirectCull({
   enabled,
   centersBuf,
+  covBuf,
   count,
   meshRef,
 }: {
   enabled: boolean;
   centersBuf: StorageBufferNode;
+  covBuf: StorageBufferNode;
   count: number;
   meshRef: React.RefObject<InstancedMesh | null>;
 }): SplatIndirectCullHookResult {
@@ -44,9 +46,10 @@ export function useSplatIndirectCull({
     if (!centersBuf) return null;
     return new GPUSplatIndirectCull(gl, {
       centers: centersBuf,
+      cov: covBuf,
       maxCount: count,
     });
-  }, [gl, centersBuf, count]);
+  }, [gl, centersBuf, covBuf, count]);
 
   useEffect(() => {
     if (!cull) return;
