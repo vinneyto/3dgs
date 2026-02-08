@@ -2,6 +2,7 @@ pub mod splats;
 pub mod splats_parser;
 pub mod parsers;
 pub mod bitops_core;
+pub mod octree;
 
 #[cfg(target_arch = "wasm32")]
 mod splats_wasm;
