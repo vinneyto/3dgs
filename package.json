@@ -10,7 +10,7 @@
     "format:check": "prettier --check .",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint --ignore-pattern 'src/wasm/pkg/**'"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -22,7 +22,8 @@
     "react-dom": "19.2.3",
     "react-katex": "^3.1.0",
     "stats.js": "^0.17.0",
-    "three": "^0.182.0"
+    "three": "^0.182.0",
+    "webgpu-utils": "^2.0.3"
   },
   "devDependencies": {
     "@types/node": "^20",

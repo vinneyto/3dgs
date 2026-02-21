@@ -23,6 +23,7 @@ const demos = [
   { href: "/photo-ply", label: "Photo PLY (WIP)" },
   { href: "/ref-splats", label: "Ref splats (PLY)" },
   { href: "/prefix-sum", label: "Prefix sum (CPU / TS)" },
+  { href: "/radix-sort-webgpu", label: "Radix sort (WebGPU setup)" },
   { href: "/rust-wasm", label: "PLY parse (Rust WASM)" },
   { href: "/rust-sogs-v2", label: "SOGS v2 parse (Rust WASM)" },
   { href: "/room-sog", label: "Room SOG render (Rust WASM)" },
@@ -67,14 +68,11 @@ function MobileShell({
 function DesktopShell({
   children,
   pathname,
-  query,
-  onQueryChange,
 }: {
   children: ReactNode;
   pathname: string;
-  query: string;
-  onQueryChange: (next: string) => void;
 }) {
+  const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const filteredDemos = q
     ? demos.filter(({ href, label }) => {
@@ -91,7 +89,7 @@ function DesktopShell({
           <input
             className="sidebarSearchInput"
             value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search demos…"
             aria-label="Search demos"
           />
@@ -124,7 +122,6 @@ export function DemoShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [hydrated, setHydrated] = useState(false);
   const isMobile = useIsMobile(820);
-  const [query, setQuery] = useState("");
 
   // Avoid hydration mismatch: server cannot know viewport width, so defer shell
   // selection to the client after hydration.
@@ -133,11 +130,6 @@ export function DemoShell({ children }: { children: ReactNode }) {
     return () => window.cancelAnimationFrame(raf);
   }, []);
 
-  // When switching demos (route changes), keep sidebar search UX clean.
-  useEffect(() => {
-    setQuery("");
-  }, [pathname]);
-
   if (!hydrated) {
     return <div className="appBoot" />;
   }
@@ -145,7 +137,7 @@ export function DemoShell({ children }: { children: ReactNode }) {
   return isMobile ? (
     <MobileShell pathname={pathname}>{children}</MobileShell>
   ) : (
-    <DesktopShell pathname={pathname} query={query} onQueryChange={setQuery}>
+    <DesktopShell key={pathname} pathname={pathname}>
       {children}
     </DesktopShell>
   );
