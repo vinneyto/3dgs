@@ -1,18 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import { formatBytes } from "@/app/_shared/utils/formatBytes";
 import {
   RADIX_SORT_WEBGPU_DEMO_N,
   RADIX_SORT_WEBGPU_DEMO_WORKGROUP_SIZE_X,
   type RadixSortWebgpuDemoResult,
-  runRadixSortWebgpuSetupDemo,
+  prepareRadixSortInput,
+  compareCpuArraySortToGpu,
+  runRadixSortCpuArraySort,
+  runRadixSortWebgpuGpu,
 } from "./runRadixSortWebgpuSetup";
 
 const BYTES_PER_U32 = 4;
 
 export default function RadixSortWebGPUDemoPage() {
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<string | null>(null);
   const [result, setResult] = useState<RadixSortWebgpuDemoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,12 +60,72 @@ export default function RadixSortWebGPUDemoPage() {
             setBusy(true);
             setError(null);
             try {
-              const r = await runRadixSortWebgpuSetupDemo();
-              setResult(r);
+              flushSync(() => setPhase("Generating input data (CPU)..."));
+              const prepared = prepareRadixSortInput({
+                n: RADIX_SORT_WEBGPU_DEMO_N,
+                seed: 123456789,
+              });
+
+              flushSync(() => setPhase("Running GPU radix sort..."));
+              const { result: gpuResult, gpuSorted } =
+                await runRadixSortWebgpuGpu({ prepared });
+              flushSync(() => setResult(gpuResult));
+
+              // Let the browser actually paint GPU results before heavy CPU sort.
+              await new Promise<void>((resolve) =>
+                window.requestAnimationFrame(() => resolve()),
+              );
+              await new Promise<void>((resolve) =>
+                window.requestAnimationFrame(() => resolve()),
+              );
+
+              // Ensure phase updates before the CPU blocks the main thread.
+              flushSync(() => setPhase("Running CPU Array.sort..."));
+              await new Promise<void>((resolve) =>
+                window.requestAnimationFrame(() => resolve()),
+              );
+              const cpuSort = runRadixSortCpuArraySort({
+                cpuValues: prepared.cpuValues,
+                memorySizeGb: gpuResult.perf.memorySizeGb,
+              });
+              setResult((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      cpu: cpuSort.cpu,
+                      timingsMs: {
+                        ...prev.timingsMs,
+                        cpuSort: cpuSort.cpuSortMs,
+                      },
+                    }
+                  : prev,
+              );
+
+              flushSync(() => setPhase("Comparing CPU vs GPU..."));
+              await new Promise<void>((resolve) =>
+                window.requestAnimationFrame(() => resolve()),
+              );
+              const cpuCmp = compareCpuArraySortToGpu({
+                ref: cpuSort.ref,
+                gpuSorted,
+              });
+              setResult((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      timingsMs: {
+                        ...prev.timingsMs,
+                        cpuCompare: cpuCmp.cpuCompareMs,
+                      },
+                      verify: { ...prev.verify, cpuCompare: cpuCmp.cpuCompare },
+                    }
+                  : prev,
+              );
             } catch (e) {
               setResult(null);
               setError(e instanceof Error ? e.message : String(e));
             } finally {
+              setPhase(null);
               setBusy(false);
             }
           }}
@@ -72,8 +137,9 @@ export default function RadixSortWebGPUDemoPage() {
             cursor: busy ? "not-allowed" : "pointer",
           }}
         >
-          {busy ? "Running..." : "Run radix sort"}
+          Run radix sort
         </button>
+        {busy && phase ? <div style={{ opacity: 0.75 }}>{phase}</div> : null}
       </div>
 
       {error ? (
@@ -114,9 +180,23 @@ export default function RadixSortWebGPUDemoPage() {
 
           <div style={{ opacity: 0.7 }}>Perf</div>
           <div>
-            {result.perf.effectiveBandwidthGbps.toFixed(2)} GB/s,{" "}
+            GPU: {result.perf.effectiveBandwidthGbps.toFixed(2)} GB/s,{" "}
             {result.perf.uintMillionsPerSecond.toFixed(2)} M u32/s,{" "}
             {result.perf.radixSortSeconds.toFixed(3)} s
+            {result.cpu.method ? (
+              <>
+                <br />
+                CPU ({result.cpu.method}):{" "}
+                {(result.cpu.effectiveBandwidthGbps ?? 0).toFixed(2)} GB/s,{" "}
+                {(result.cpu.uintMillionsPerSecond ?? 0).toFixed(2)} M u32/s,{" "}
+                {(result.cpu.seconds ?? 0).toFixed(3)} s
+              </>
+            ) : (
+              <>
+                <br />
+                CPU: waiting…
+              </>
+            )}
           </div>
 
           <div style={{ opacity: 0.7 }}>Verify</div>
