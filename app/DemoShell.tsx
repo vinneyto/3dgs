@@ -24,6 +24,7 @@ const demos = [
   { href: "/ref-splats", label: "Ref splats (PLY)" },
   { href: "/prefix-sum", label: "Prefix sum (CPU / TS)" },
   { href: "/radix-sort-webgpu", label: "Radix sort (WebGPU setup)" },
+  { href: "/radix-sort-three-tsl", label: "Radix sort (three.js + TSL)" },
   { href: "/rust-wasm", label: "PLY parse (Rust WASM)" },
   { href: "/rust-sogs-v2", label: "SOGS v2 parse (Rust WASM)" },
   { href: "/room-sog", label: "Room SOG render (Rust WASM)" },
