@@ -1,0 +1,298 @@
+.page {
+  height: 100%;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(320px, 520px) minmax(280px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top, rgba(128, 149, 255, 0.18), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 24px 80px rgba(0, 0, 0, 0.3);
+}
+
+.crestPanel {
+  display: grid;
+  place-items: center;
+  min-height: 680px;
+  position: relative;
+  overflow: hidden;
+}
+
+.crestPanel::before,
+.crestPanel::after {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+.crestPanel::before {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(121, 169, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 50% 70%, rgba(255, 127, 99, 0.08), transparent 32%);
+}
+
+.crestPanel::after {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.crestSvg {
+  width: min(100%, 480px);
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 22px 44px rgba(0, 0, 0, 0.34));
+}
+
+.orbitSpin,
+.pulse,
+.danceLeft,
+.danceRight,
+.starsDrift {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.orbitSpin {
+  animation: orbitSpin 18s linear infinite;
+}
+
+.pulse {
+  animation: pulse 4s ease-in-out infinite;
+}
+
+.danceLeft {
+  animation: swayLeft 6s ease-in-out infinite;
+}
+
+.danceRight {
+  animation: swayRight 6s ease-in-out infinite;
+}
+
+.starsDrift {
+  animation: drift 12s ease-in-out infinite;
+}
+
+.contentPanel {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(109, 119, 255, 0.14);
+  border: 1px solid rgba(128, 140, 255, 0.22);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: clamp(34px, 4vw, 56px);
+  line-height: 0.98;
+  margin: 0;
+}
+
+.lead {
+  margin: 0;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 62ch;
+}
+
+.statRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pill {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+}
+
+.story {
+  display: grid;
+  gap: 12px;
+}
+
+.storyTitle {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.storyList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.storyItem {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.storyItem strong {
+  font-size: 15px;
+}
+
+.storyItem span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+}
+
+.legendGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.legendCard {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.025)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.legendCard h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+.legendCard p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+}
+
+.note {
+  margin: 0;
+  padding: 16px 18px;
+  border-left: 3px solid rgba(133, 160, 255, 0.7);
+  border-radius: 14px;
+  background: rgba(101, 118, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+@keyframes orbitSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: scale(1.035);
+    opacity: 1;
+  }
+}
+
+@keyframes swayLeft {
+  0%,
+  100% {
+    transform: rotate(-3deg) translateY(0);
+  }
+  50% {
+    transform: rotate(3deg) translateY(-4px);
+  }
+}
+
+@keyframes swayRight {
+  0%,
+  100% {
+    transform: rotate(3deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-3deg) translateY(-4px);
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.84;
+  }
+  50% {
+    transform: translateY(-7px);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1120px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .crestPanel {
+    min-height: 560px;
+  }
+
+  .legendGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    gap: 10px;
+  }
+
+  .contentPanel {
+    padding: 20px;
+  }
+
+  .crestPanel {
+    min-height: 460px;
+  }
+
+  .legendGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .title {
+    font-size: 30px;
+  }
+}

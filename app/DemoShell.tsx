@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useIsMobile } from "@/app/_shared/hooks/useIsMobile";
 
 const demos = [
+  { href: "/coat-of-arms", label: "Personal coat of arms" },
   { href: "/covariance", label: "Covariance (debug)" },
   { href: "/splat-quad", label: "Splat quad (debug)" },
   { href: "/compare", label: "Compare (ellipsoid + sprite)" },
