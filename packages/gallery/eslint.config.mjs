@@ -5,18 +5,14 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Override default ignores of eslint-config-next.
+  // Override default ignores of eslint-config-next for the package-local app.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Migration sandbox (old Vite app lives here for now):
     "tmp/**",
-    // Generated WASM bindings (wasm-pack output):
     "app/_shared/wasm/pkg/**",
-    // Local scratch code used for format reverse-engineering:
     "external/**",
   ]),
   // These demos intentionally mutate Three/WebGPU objects (uniforms, BufferAttributes, etc).
