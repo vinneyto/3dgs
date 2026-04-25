@@ -1,0 +1,16 @@
+FROM node:20-bookworm-slim
+
+WORKDIR /repo
+
+# Copy workspace manifests first for better layer caching
+COPY package.json package-lock.json ./
+COPY packages/examples/package.json ./packages/examples/package.json
+
+# Install only workspace dependencies inside container
+RUN npm ci
+
+# Copy project sources
+COPY . .
+
+# Build examples package through workspace root script
+RUN npm run build

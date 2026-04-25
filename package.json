@@ -1,39 +1,15 @@
 {
-  "name": "3dgs",
-  "version": "0.1.0",
+  "name": "3dgs-monorepo",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "wasm:build": "wasm-pack build wasm --target web --out-dir ../app/_shared/wasm/pkg --out-name rust_wasm && rm -f app/_shared/wasm/pkg/.gitignore",
-    "wasm:watch": "node scripts/wasm-watch.mjs",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint --ignore-pattern 'src/wasm/pkg/**'"
-  },
-  "dependencies": {
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.4.2",
-    "katex": "^0.16.22",
-    "leva": "^0.9.36",
-    "next": "16.1.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-katex": "^3.1.0",
-    "stats.js": "^0.17.0",
-    "three": "^0.182.0",
-    "webgpu-utils": "^2.0.3"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/react-katex": "^3.0.4",
-    "@types/three": "^0.182.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.1",
-    "prettier": "^3.7.4",
-    "typescript": "^5"
+    "dev": "npm run dev -w @3dgs/examples",
+    "build": "npm run build -w @3dgs/examples",
+    "lint": "npm run lint -w @3dgs/examples",
+    "start": "npm run start -w @3dgs/examples",
+    "wasm:build": "npm run wasm:build -w @3dgs/examples",
+    "wasm:watch": "npm run wasm:watch -w @3dgs/examples"
   }
 }
