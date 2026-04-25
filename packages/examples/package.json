@@ -8,7 +8,7 @@
     "wasm:watch": "node scripts/wasm-watch.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint --ignore-pattern 'src/wasm/pkg/**'"
   },
