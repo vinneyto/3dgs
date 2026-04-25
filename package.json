@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @3dgs/examples",
-    "build": "npm run build -w @3dgs/examples && rm -rf .next && cp -R packages/examples/.next .next",
+    "build": "npm run build -w @3dgs/examples && rm -rf .next && cp -R packages/examples/.next .next && node scripts/retarget-nft-paths-after-copy.mjs",
     "lint": "npm run lint -w @3dgs/examples",
     "start": "npm run start -w @3dgs/examples",
     "wasm:build": "npm run wasm:build -w @3dgs/examples",
