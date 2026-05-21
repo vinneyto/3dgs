@@ -14,6 +14,7 @@ import {
 } from "three";
 import { RotatingCubes } from "@/app/_shared/lib/RotatingCubes";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
@@ -74,6 +75,7 @@ export class FxaaTransparentDemo {
 
     this.fxaaPass = new ShaderPass(FXAAShader);
     this.composer.addPass(this.fxaaPass);
+    this.composer.addPass(new OutputPass());
 
     this.renderer.setClearColor(0x000000, 0);
   }
