@@ -32,6 +32,7 @@ const demos = [
   { href: "/truck-high-ply", label: "Truck PLY render (Rust WASM)" },
   { href: "/truck-high-ply-gpu-culling", label: "Truck PLY (GPU culling)" },
   { href: "/rust-bitops", label: "Rust bitwise ops" },
+  { href: "/fxaa-transparent-canvas", label: "FXAA + transparent canvas" },
   { href: "/sh-sphere", label: "SH sphere (widget)" },
 ];
 
