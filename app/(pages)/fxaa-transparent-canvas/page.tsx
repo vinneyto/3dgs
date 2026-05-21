@@ -1,31 +1,18 @@
 "use client";
 
 import { Canvas, type RootState } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
+import { useEffect, useRef } from "react";
 import { FxaaTransparentDemo } from "@/app/_shared/lib/fxaaTransparentDemo";
 
 export default function FxaaTransparentCanvasPage() {
   const demoRef = useRef<FxaaTransparentDemo | null>(null);
 
-  const renderer = useMemo(() => {
-    const r = new THREE.WebGLRenderer({
-      antialias: false,
-      alpha: true,
-      powerPreference: "high-performance",
-      premultipliedAlpha: true,
-    });
-    r.setClearColor(0x000000, 0);
-    return r;
-  }, []);
-
   useEffect(() => {
     return () => {
       demoRef.current?.detach();
       demoRef.current = null;
-      renderer.dispose();
     };
-  }, [renderer]);
+  }, []);
 
   const handleCreated = (state: RootState) => {
     const container = state.gl.domElement.parentElement;
@@ -33,7 +20,9 @@ export default function FxaaTransparentCanvasPage() {
 
     demoRef.current?.detach();
 
-    const demo = new FxaaTransparentDemo(renderer);
+    state.gl.setClearColor(0x000000, 0);
+
+    const demo = new FxaaTransparentDemo(state.gl);
     demo.attach(container);
     demoRef.current = demo;
   };
@@ -53,7 +42,12 @@ export default function FxaaTransparentCanvasPage() {
 
       <div className="canvasWrap checkerboardUnderlay">
         <Canvas
-          gl={() => renderer}
+          gl={{
+            antialias: false,
+            alpha: true,
+            powerPreference: "high-performance",
+            premultipliedAlpha: true,
+          }}
           frameloop="never"
           onCreated={handleCreated}
           onPointerMissed={() => {
