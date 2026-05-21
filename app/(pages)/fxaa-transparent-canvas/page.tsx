@@ -64,15 +64,8 @@ export default function FxaaTransparentCanvasPage() {
             // no-op: keeps pointer handling explicit for this bare-canvas demo
           }}
         />
-        <div className="levaDock">
-          <Leva
-            fill
-            flat
-            titleBar={{
-              drag: true,
-              filter: false,
-            }}
-          />
+        <div className="levaDock" suppressHydrationWarning>
+          <Leva />
         </div>
       </div>
     </div>
