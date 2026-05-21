@@ -25,6 +25,7 @@ export class FxaaTransparentDemo {
   private readonly camera: PerspectiveCamera;
   private readonly composer: EffectComposer;
   private readonly fxaaPass: ShaderPass;
+  private fxaaEnabled = true;
 
   private rafId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -98,6 +99,11 @@ export class FxaaTransparentDemo {
     this.stop();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+  }
+
+  setFxaaEnabled(enabled: boolean) {
+    this.fxaaEnabled = enabled;
+    this.fxaaPass.enabled = enabled;
   }
 
   private resize(width: number, height: number) {

@@ -1,11 +1,16 @@
 "use client";
 
 import { Canvas, type RootState } from "@react-three/fiber";
+import { Leva, useControls } from "leva";
 import { useEffect, useRef } from "react";
 import { FxaaTransparentDemo } from "@/app/_shared/lib/fxaaTransparentDemo";
 
 export default function FxaaTransparentCanvasPage() {
   const demoRef = useRef<FxaaTransparentDemo | null>(null);
+
+  const { fxaaEnabled } = useControls("FXAA demo", {
+    fxaaEnabled: { value: true, label: "Enable FXAA" },
+  });
 
   useEffect(() => {
     return () => {
@@ -23,9 +28,14 @@ export default function FxaaTransparentCanvasPage() {
     state.gl.setClearColor(0x000000, 0);
 
     const demo = new FxaaTransparentDemo(state.gl);
+    demo.setFxaaEnabled(fxaaEnabled);
     demo.attach(container);
     demoRef.current = demo;
   };
+
+  useEffect(() => {
+    demoRef.current?.setFxaaEnabled(fxaaEnabled);
+  }, [fxaaEnabled]);
 
   return (
     <div className="page">
@@ -54,6 +64,16 @@ export default function FxaaTransparentCanvasPage() {
             // no-op: keeps pointer handling explicit for this bare-canvas demo
           }}
         />
+        <div className="levaDock">
+          <Leva
+            fill
+            flat
+            titleBar={{
+              drag: true,
+              filter: false,
+            }}
+          />
+        </div>
       </div>
     </div>
   );
