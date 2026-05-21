@@ -12,6 +12,7 @@ import {
   TorusKnotGeometry,
   WebGLRenderer,
 } from "three";
+import { RotatingCubes } from "@/app/_shared/lib/RotatingCubes";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
@@ -29,6 +30,7 @@ export class FxaaTransparentDemo {
   private readonly clock = new Clock();
 
   private readonly group = new Group();
+  private readonly rotatingCubes = new RotatingCubes();
 
   constructor(renderer: WebGLRenderer) {
     this.renderer = renderer;
@@ -37,9 +39,12 @@ export class FxaaTransparentDemo {
     this.camera = new PerspectiveCamera(55, 1, 0.1, 100);
     this.camera.position.set(0, 0.4, 3.4);
 
-    const ambient = new AmbientLight(0xffffff, 0.45);
-    const key = new DirectionalLight(0xffffff, 1.0);
+    const ambient = new AmbientLight(0xffffff, 0.5);
+    const key = new DirectionalLight(0xffffff, 1.15);
     key.position.set(2, 3, 4);
+
+    const fill = new DirectionalLight(0x9ecbff, 0.55);
+    fill.position.set(-3, 1.5, -2);
 
     const geo = new TorusKnotGeometry(0.58, 0.2, 256, 32);
     const mat = new MeshStandardMaterial({
@@ -62,7 +67,7 @@ export class FxaaTransparentDemo {
     ring.rotation.x = Math.PI / 2;
     this.group.add(ring);
 
-    this.scene.add(ambient, key, this.group);
+    this.scene.add(ambient, key, fill, this.rotatingCubes.group, this.group);
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -118,6 +123,7 @@ export class FxaaTransparentDemo {
       const t = this.clock.getElapsedTime();
       this.group.rotation.y = t * 0.55;
       this.group.rotation.x = Math.sin(t * 0.7) * 0.18;
+      this.rotatingCubes.update(t);
       this.composer.render();
       this.rafId = window.requestAnimationFrame(tick);
     };
