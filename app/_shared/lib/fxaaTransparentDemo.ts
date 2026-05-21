@@ -1,46 +1,59 @@
-import * as THREE from "three";
+import {
+  AmbientLight,
+  Clock,
+  DirectionalLight,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  PerspectiveCamera,
+  Scene,
+  TorusGeometry,
+  TorusKnotGeometry,
+  WebGLRenderer,
+} from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
 
 export class FxaaTransparentDemo {
-  private readonly renderer: THREE.WebGLRenderer;
-  private readonly scene: THREE.Scene;
-  private readonly camera: THREE.PerspectiveCamera;
+  private readonly renderer: WebGLRenderer;
+  private readonly scene: Scene;
+  private readonly camera: PerspectiveCamera;
   private readonly composer: EffectComposer;
   private readonly fxaaPass: ShaderPass;
 
   private rafId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  private readonly clock = new THREE.Clock();
+  private readonly clock = new Clock();
 
-  private readonly group = new THREE.Group();
+  private readonly group = new Group();
 
-  constructor(renderer: THREE.WebGLRenderer) {
+  constructor(renderer: WebGLRenderer) {
     this.renderer = renderer;
 
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+    this.scene = new Scene();
+    this.camera = new PerspectiveCamera(55, 1, 0.1, 100);
     this.camera.position.set(0, 0.4, 3.4);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.45);
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
+    const ambient = new AmbientLight(0xffffff, 0.45);
+    const key = new DirectionalLight(0xffffff, 1.0);
     key.position.set(2, 3, 4);
 
-    const geo = new THREE.TorusKnotGeometry(0.58, 0.2, 256, 32);
-    const mat = new THREE.MeshStandardMaterial({
+    const geo = new TorusKnotGeometry(0.58, 0.2, 256, 32);
+    const mat = new MeshStandardMaterial({
       color: "#7cc6ff",
       metalness: 0.1,
       roughness: 0.3,
     });
 
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = new Mesh(geo, mat);
     this.group.add(mesh);
 
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(1.2, 0.02, 12, 128),
-      new THREE.MeshBasicMaterial({
+    const ring = new Mesh(
+      new TorusGeometry(1.2, 0.02, 12, 128),
+      new MeshBasicMaterial({
         color: "#ffd36b",
         transparent: true,
         opacity: 0.8,
