@@ -47,6 +47,7 @@ This repository now includes a placeholder page for the future WebGPU Particle-I
 1. **Physical model scope**
    - Electrostatic PIC only (Poisson + E field), or full electromagnetic PIC (Maxwell + B field)?
    - Confirm if magnetic effects are out of scope for MVP.
+   - **Answer:** MVP uses **Electrostatic PIC only** (`rho -> phi -> E`). Magnetic effects and full Maxwell EM evolution are out of scope for MVP.
 
 2. **Field boundary conditions (cube side = 0.1 m)**
    - Dirichlet (`phi=0` on walls), Neumann (`dphi/dn=0`), or periodic boundaries?
