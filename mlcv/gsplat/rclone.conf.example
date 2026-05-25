@@ -1,0 +1,9 @@
+# Example rclone config for Google Drive OAuth.
+# Create this file by running: rclone config
+# Then mount it into the container at:
+#   /root/.config/rclone/rclone.conf
+
+[gdrive]
+type = drive
+scope = drive
+token = {"access_token":"ACCESS_TOKEN","token_type":"Bearer","refresh_token":"REFRESH_TOKEN","expiry":"2026-01-01T00:00:00Z"}
