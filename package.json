@@ -15,6 +15,7 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
+    "@sparkjsdev/spark": "^0.1.10",
     "katex": "^0.16.22",
     "leva": "^0.9.36",
     "next": "16.1.1",
